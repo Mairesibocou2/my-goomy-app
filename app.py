@@ -5,6 +5,7 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 import json
 import os
 import time
+import re
 import requests
 import urllib.parse
 from datetime import datetime
@@ -177,6 +178,21 @@ def clean_ai_json(text):
         return json.loads(text[start:end]) if start != -1 else json.loads(text)
     except: return {"error": "Erreur format JSON", "raw": text}
 
+def clean_ingredient_name(text):
+    """Nettoie une ligne d'ingrédient pour ne garder que le nom du produit."""
+    # 1. Enlever ce qui est entre parenthèses (ex: "riz (cuit)")
+    text = re.sub(r'\([^)]*\)', '', text)
+    
+    # 2. Enlever les quantités au début (ex: "100g de", "2 c.à.s de", "1/2 tasse")
+    # Cette regex cherche : Chiffres -> Unités optionnelles -> "de/d'" optionnel
+    pattern = r"^[\d\/\-\.,\s]+(?:g|kg|ml|cl|l|oz|lb|cuillères?|c\.à\.s|c\.à\.c|tasses?|verres?|pincées?|tranches?|bottes?|poignées?|gousses?|filets?)\s*(?:à\s*(?:soupe|café|dessert))?\s*(?:de\s+|d'|d’|du\s+|des\s+)?"
+    
+    # On remplace le pattern trouvé par rien
+    clean_text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+    
+    # 3. Nettoyage final (espaces en trop et majuscule)
+    return clean_text.strip().capitalize()
+
 def generate_image_url(food_name):
     clean_name = urllib.parse.quote(food_name)
     return f"https://image.pollinations.ai/prompt/delicious_{clean_name}_food_photography_high_quality?width=400&height=300&nologo=true"
@@ -219,10 +235,12 @@ def process_ai_full(video_path, title):
         video_file = genai.upload_file(path=video_path)
         while video_file.state.name == "PROCESSING": time.sleep(1); video_file = genai.get_file(video_file.name)
         
+        # PROMPT MODIFIÉ : "ingredients": ["item1", "item2"] (liste simple de strings)
         prompt = f"""
         Analyse: "{title}". Recette + Nutrition.
         INSTRUCTION: 1. Recette complète. 2. Nutri 1 PART. 3. Score Santé Sévère /100.
-        JSON STRICT: {{ "nom": "...", "temps": "...", "tags": [], "score": 85, "portion_text": "Selon vidéo", "nutrition": {{ "cal": "...", "prot": "...", "carb": "...", "fat": "..." }}, "ingredients": [], "etapes": [] }}
+        IMPORTANT: 'ingredients' doit être une liste simple de textes (Ex: ["2 oeufs", "100g farine"]). Pas de catégories.
+        JSON STRICT: {{ "nom": "...", "temps": "...", "tags": [], "score": 85, "portion_text": "Selon vidéo", "nutrition": {{ "cal": "...", "prot": "...", "carb": "...", "fat": "..." }}, "ingredients": ["..."], "etapes": [] }}
         """
         response = model.generate_content([video_file, prompt], safety_settings=safety_settings)
         genai.delete_file(video_file.name)
@@ -250,8 +268,8 @@ def suggest_frigo_recipes(ingredient, nb_pers):
         model = genai.GenerativeModel("gemini-2.5-flash")
         prompt = f"""
         J'ai SEULEMENT: "{ingredient}".
-        Propose 3 recettes simples (max 2-3 ingrédients ajoutés).
-        Ingrédients pour {nb_pers} PERSONNES. Nutrition pour 1.
+        Propose 3 recettes simples. Ingrédients pour {nb_pers} PERSONNES.
+        IMPORTANT: 'ingredients' doit être une liste simple de textes. Pas de catégories.
         LISTE JSON: [ {{ "nom": "...", "temps": "...", "score": 75, "portion_text": "Pour {nb_pers} p.", "nutrition": {{ "cal": "...", "prot": "...", "carb": "...", "fat": "..." }}, "ingredients": ["..."], "etapes_courtes": "..." }} ]
         """
         response = model.generate_content(prompt, safety_settings=safety_settings)
@@ -262,24 +280,19 @@ def generate_chef_proposals(req, frigo_items, options, nb_pers):
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
         
-        # On construit le prompt selon les options cochées
         constraint_txt = ""
-        if "Healthy" in options: constraint_txt += "Recettes très saines et légères. "
+        if "Healthy" in options: constraint_txt += "Recettes très saines. "
         if "Economique" in options: constraint_txt += "Ingrédients pas chers. "
-        if "Rapide" in options: constraint_txt += "Prêt en 15 min max. "
-        if "Peu d'ingrédients" in options: constraint_txt += "Max 5 ingrédients principaux. "
+        if "Rapide" in options: constraint_txt += "Prêt en 15 min. "
+        if "Peu d'ing." in options: constraint_txt += "Max 5 ingrédients. "
         
-        frigo_txt = f"J'ai DÉJÀ au frigo : {frigo_items} (à utiliser en priorité)." if frigo_items else ""
+        frigo_txt = f"Utiliser en priorité: {frigo_items}." if frigo_items else ""
 
         prompt = f"""
-        Role: Chef Cuisinier Créatif.
-        Demande : 3 recettes pour "{req}".
-        {frigo_txt}
-        Contraintes : {constraint_txt}
+        3 recettes pour : "{req}". {frigo_txt} Contraintes : {constraint_txt}
         Quantités: {nb_pers} Pers. Nutri: 1 Pers.
-        
-        IMPORTANT: Pour les ingrédients, structure simple.
-        LISTE JSON: [ {{ "nom": "...", "type": "Rapide", "score": 80, "portion_text": "Pour {nb_pers} p.", "nutrition": {{...}}, "ingredients": ["ingrédient 1", "ingrédient 2"], "etapes": [...] }} ]
+        IMPORTANT: 'ingredients' doit être une liste simple de textes. Pas de catégories.
+        LISTE JSON: [ {{ "nom": "...", "type": "Rapide", "score": 80, "portion_text": "Pour {nb_pers} p.", "nutrition": {{...}}, "ingredients": ["...", "..."], "etapes": [...] }}, ... ]
         """
         response = model.generate_content(prompt, safety_settings=safety_settings)
         return clean_ai_json(response.text)
@@ -326,9 +339,9 @@ def display_recipe_card_full(r, url, thumb, show_save=False):
     c_titre, c_badge = st.columns([3, 1])
     with c_titre:
         st.header(r.get('nom', 'Recette'))
-        # AJOUT DU LIEN VIDEO ICI
-        if url and "http" in url:
-            st.markdown(f"🔗 [Voir la vidéo originale]({url})")
+        # LIEN VIDÉO CLIQUABLE
+        if r.get('url') and "http" in r.get('url'):
+            st.markdown(f"🔗 [Voir la vidéo originale]({r.get('url')})")
         if r.get('type'): st.caption(f"Style : {r.get('type')}")
     with c_badge:
         st.markdown(f"<div style='text-align:right;'><span class='portion-badge'>👥 {r.get('portion_text', 'Standard')}</span></div>", unsafe_allow_html=True)
@@ -354,37 +367,35 @@ def display_recipe_card_full(r, url, thumb, show_save=False):
                 time.sleep(1)
                 st.rerun()
     with col2:
-        st.subheader("Ingrédients (Cocher pour la liste)")
+        st.subheader("Ingrédients (Cocher pour courses)")
         
-        ingredients = r.get('ingredients', [])
-        
-        # LOGIQUE POUR GERER L'AFFICHAGE COMPLEXE (Dictionnaires)
-        flat_list = []
-        
-        # Si c'est une liste de dictionnaires (Ton bug actuel)
-        if ingredients and isinstance(ingredients[0], dict):
-            for group in ingredients:
-                st.markdown(f"**{group.get('categorie', 'Autre')}**")
-                for item in group.get('elements', []):
-                    # Checkbox pour liste de courses
-                    is_in_list = item in st.session_state.shopping_list
-                    if st.checkbox(item, value=is_in_list, key=f"shop_{r.get('id', 'new')}_{item}"):
-                        if item not in st.session_state.shopping_list:
-                            st.session_state.shopping_list.append(item)
-                    else:
-                        if item in st.session_state.shopping_list:
-                            st.session_state.shopping_list.remove(item)
-        
-        # Si c'est une liste simple (Anciennes recettes)
+        raw_ingredients = r.get('ingredients', [])
+        final_ingredients = []
+
+        # CORRECTION DU BUG D'AFFICHAGE "CATEGORIE"
+        # On aplatit la liste si l'IA a fait des catégories complexes
+        if raw_ingredients and isinstance(raw_ingredients[0], dict):
+            for group in raw_ingredients:
+                # On ajoute les éléments de chaque groupe à notre liste finale
+                final_ingredients.extend(group.get('elements', []))
         else:
-            for item in ingredients:
-                is_in_list = item in st.session_state.shopping_list
-                if st.checkbox(item, value=is_in_list, key=f"shop_{r.get('id', 'new')}_{item}"):
-                    if item not in st.session_state.shopping_list:
-                        st.session_state.shopping_list.append(item)
-                else:
-                    if item in st.session_state.shopping_list:
-                        st.session_state.shopping_list.remove(item)
+            final_ingredients = raw_ingredients
+
+        # AFFICHAGE ET CHECKBOX
+        for item in final_ingredients:
+            # On calcule le nom "propre" pour la liste de courses
+            clean_name = clean_ingredient_name(item)
+            
+            # Est-ce que cet ingrédient (version propre) est déjà dans la liste ?
+            is_in_list = clean_name in st.session_state.shopping_list
+            
+            # On affiche la phrase complète (ex: "2 oeufs") mais on stocke "Oeufs"
+            if st.checkbox(item, value=is_in_list, key=f"shop_{r.get('id', 'new')}_{item}"):
+                if clean_name not in st.session_state.shopping_list:
+                    st.session_state.shopping_list.append(clean_name)
+            else:
+                if clean_name in st.session_state.shopping_list:
+                    st.session_state.shopping_list.remove(clean_name)
 
         st.subheader("Instructions")
         for i, s in enumerate(r.get('etapes', []), 1): st.write(f"**{i}.** {s}")
