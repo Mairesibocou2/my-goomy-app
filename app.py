@@ -469,14 +469,16 @@ with st.sidebar:
 
 # --- MAIN ---
 
-# --- LOGO DE L'APPLICATION ---
-col_logo_1, col_logo_2, col_logo_3 = st.columns([1, 2, 1]) # Crée 3 colonnes pour centrer la deuxième
+# --- LOGO DE L'APPLICATION AVEC SECURITE ---
+col_logo_1, col_logo_2, col_logo_3 = st.columns([1, 2, 1])
 with col_logo_2:
-    # Remplace 'logo.png' par le chemin de ton image ou une URL
-    # Si ton logo est en ligne, mets l'URL entre les guillemets
-    st.image("logo.png", use_container_width=True) 
+    if os.path.exists("logo.png"):
+        st.image("logo.png", use_container_width=True)
+    else:
+        # Si le fichier manque, on affiche un titre stylé pour ne pas avoir d'erreur
+        st.markdown("<h1 style='text-align:center; color:#FF4757;'>🥘 Goumin</h1>", unsafe_allow_html=True)
 
-st.write("") # Petit espace sous le logo
+st.write("")
 tabs = st.tabs(["👨‍🍳 My name is Chef", "🛒 Courses", "🔄 Comparateur", "🏋️ Coach", "📚 Bibliothèque"])
 
 # 1. CUISINE (FUSION IMPORT & CHEF)
