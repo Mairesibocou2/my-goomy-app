@@ -724,7 +724,7 @@ with tabs[4]:
         """)
 
 # 6. BIBLIOTHEQUE (SYSTEME VUE DETAILLEE)
-with tabs[5]:
+with tabs[4]:
     if st.button("🔄 Actualiser"): st.rerun()
     db = load_db()
     
