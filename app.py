@@ -52,7 +52,7 @@ st.markdown("""
     
     /* CARTES RECETTES (Style iOS) */
     div[data-testid="stVerticalBlock"] > div[style*="border"] {
-        background-color: white; 
+        background-color: #141414; 
         border-radius: 24px !important; /* Plus arrondi */
         border: none !important;
         box-shadow: 0 10px 20px rgba(0,0,0,0.05); 
