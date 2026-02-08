@@ -41,6 +41,14 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
     .stApp { background-color: #F2F2F7; }
+
+    /* Force le format carré pour les images de recettes */
+    [data-testid="stImage"] img {
+        width: 100%;
+        aspect-ratio: 1 / 1; /* Ratio carré parfait */
+        object-fit: cover;   /* Remplit le carré sans déformer l'image */
+        border-radius: 20px !important;
+    }
     
     /* CARTES RECETTES (Style iOS) */
     div[data-testid="stVerticalBlock"] > div[style*="border"] {
@@ -354,19 +362,16 @@ def display_nutrition_row(nutri_data):
     c4.caption(f"🥑 {nutri_data.get('fat', '?')}")
 
 def display_recipe_card_full(r, url, thumb, show_save=False):
-    # --- GESTION DE L'IMAGE / PLACEHOLDER ---
-    # On définit une image par défaut (Un beau plat de pâtes stylé)
+    # --- GESTION DE L'IMAGE ---
     placeholder = "https://images.unsplash.com/photo-1498837167922-ddd27525d352?q=80&w=1000&auto=format&fit=crop"
     
-    # On vérifie si on a une image valide
     final_img = None
     if thumb and thumb != "AI_GENERATED" and ("http" in thumb or os.path.exists(thumb)):
         final_img = thumb
     else:
-        # Si c'est une recette du Chef IA ou Frigo, on tente d'en générer une
         final_img = generate_image_url(r.get('nom', 'Plat délicieux'))
-    
-    # Affichage de l'image en pleine largeur (Mode Mobile Hero)
+
+    # On utilise un container pour pouvoir appliquer des styles spécifiques si besoin
     st.image(final_img if final_img else placeholder, use_container_width=True)
 
     # --- LE RESTE DU CONTENU (Titre, Scores, Tabs...) ---
