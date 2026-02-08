@@ -10,10 +10,12 @@ import urllib.parse
 from datetime import datetime
 from pathlib import Path
 
-# --- CONFIGURATION ---
+# --- CONFIGURATION FAVICON ---
 favicon = "🥘"
-if os.path.exists("favicon.png"): favicon = "favicon.png"
-elif os.path.exists("favicon.ico"): favicon = "favicon.ico"
+if os.path.exists("favicon.png"):
+    favicon = "favicon.png"
+elif os.path.exists("favicon.ico"):
+    favicon = "favicon.ico"
 
 st.set_page_config(page_title="Goumin", page_icon=favicon, layout="wide")
 
@@ -33,12 +35,13 @@ TEMP_FOLDER = "temp"
 Path(MEDIA_FOLDER).mkdir(exist_ok=True)
 Path(TEMP_FOLDER).mkdir(exist_ok=True)
 
-# --- CSS PREMIUM ---
+# --- CSS PREMIUM (DESIGN APPLE) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
     .stApp { background-color: #F2F2F7; }
+    
     div[data-testid="stVerticalBlock"] > div[style*="border"] {
         background-color: white; border-radius: 20px !important; border: none !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 15px; transition: transform 0.2s;
@@ -46,25 +49,31 @@ st.markdown("""
     div[data-testid="stVerticalBlock"] > div[style*="border"]:hover {
         transform: translateY(-2px); box-shadow: 0 8px 15px rgba(0,0,0,0.1);
     }
+    
     .stButton>button {
         width: 100%; border-radius: 12px; font-weight: 600; min-height: 45px; border: none;
         background: linear-gradient(135deg, #FF6B6B 0%, #FF4757 100%); color: white;
         box-shadow: 0 4px 10px rgba(255, 71, 87, 0.3);
     }
     .stButton>button:hover { transform: scale(1.02); box-shadow: 0 6px 15px rgba(255, 71, 87, 0.4); }
+    
     .stTextInput>div>div>input, .stNumberInput>div>div>input {
         border-radius: 12px; border: 1px solid #E5E5EA; padding: 10px; background-color: white;
     }
+    
     .score-badge {padding: 4px 10px; border-radius: 15px; color: white; font-weight: bold; font-size: 0.8em; box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
     .portion-badge {background-color: #007AFF; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.8em; font-weight: bold;}
     .small-text {font-size: 0.85em; color: #3A3A3C;}
     .big-icon {font-size: 40px; text-align: center;}
+    
     .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] {
         background-color: white; border-radius: 10px; border: none; padding: 10px 20px; font-weight: 600;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
     .stTabs [aria-selected="true"] { background-color: #FF4757 !important; color: white !important; }
+    
+    div[data-testid="stMetric"] { background-color: #F8F9FA; padding: 10px; border-radius: 12px; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -77,17 +86,32 @@ if 'workout_plan' not in st.session_state: st.session_state.workout_plan = None
 if 'selected_recipe_id' not in st.session_state: st.session_state.selected_recipe_id = None
 if 'cookies_path' not in st.session_state: st.session_state.cookies_path = None
 
-# --- DATABASE & UTILS ---
+# --- SECURITE ---
+safety_settings = {
+    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+}
+
+# --- DATABASE ---
 def load_db():
     if not os.path.exists(DB_FILE): return []
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
+            # Correction rétroactive des champs manquants
+            for r in data:
+                if 'tags' not in r: r['tags'] = []
+                if 'nutrition' not in r: r['nutrition'] = {}
+                if 'score' not in r: r['score'] = 50
+                if 'portion_text' not in r: r['portion_text'] = "Non spécifié"
             return data
     except: return []
 
 def save_db(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f: json.dump(data, f, indent=4, ensure_ascii=False)
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
 
 def save_image_locally(url_image, nom_fichier):
     try:
@@ -104,7 +128,8 @@ def save_uploaded_file(uploaded_file, nom_fichier):
     try:
         ext = uploaded_file.name.split('.')[-1]
         chemin = os.path.join(MEDIA_FOLDER, f"{nom_fichier}.{ext}")
-        with open(chemin, "wb") as f: f.write(uploaded_file.getbuffer())
+        with open(chemin, "wb") as f:
+            f.write(uploaded_file.getbuffer())
         return chemin
     except: return None
 
@@ -113,6 +138,7 @@ def add_recipe(recipe, url, thumb_url):
     uid = datetime.now().strftime("%Y%m%d_%H%M%S")
     local_img = save_image_locally(thumb_url, uid)
     final_img = local_img if local_img else thumb_url
+
     entry = {
         "id": uid, "date": datetime.now().strftime("%d/%m/%Y"),
         "nom": recipe.get('nom', 'Sans nom'), "temps": recipe.get('temps', '?'),
@@ -141,6 +167,8 @@ def delete_recipe(rid):
         except: pass
     save_db(new_db)
 
+# --- MOTEUR IA ---
+
 def clean_ai_json(text):
     try:
         text = text.replace("```json", "").replace("```", "").strip()
@@ -153,15 +181,15 @@ def generate_image_url(food_name):
     clean_name = urllib.parse.quote(food_name)
     return f"https://image.pollinations.ai/prompt/delicious_{clean_name}_food_photography_high_quality?width=400&height=300&nologo=true"
 
-# --- DOWNLOADER AVEC COOKIES SECRETS OU UPLOAD ---
+# --- DOWNLOADER AVEC GESTION DES COOKIES (SECRETS OU UPLOAD) ---
 def download_video(url):
-    # 1. Priorité aux cookies uploadés manuellement
+    # 1. Priorité aux cookies uploadés manuellement (Sidebar)
     cookies_to_use = st.session_state.cookies_path
     
-    # 2. Sinon, on cherche dans les SECRETS Streamlit
+    # 2. Sinon, on cherche dans les SECRETS Streamlit (Cloud)
     if not cookies_to_use and "INSTAGRAM_COOKIES" in st.secrets:
         secret_cookies_path = os.path.join(TEMP_FOLDER, "secret_cookies.txt")
-        # On crée le fichier temporairement depuis les secrets
+        # On écrit les secrets dans un fichier temporaire car yt-dlp a besoin d'un fichier
         with open(secret_cookies_path, "w", encoding="utf-8") as f:
             f.write(st.secrets["INSTAGRAM_COOKIES"])
         cookies_to_use = secret_cookies_path
@@ -170,9 +198,11 @@ def download_video(url):
         'format': 'best',
         'outtmpl': f'{TEMP_FOLDER}/video_%(id)s.%(ext)s',
         'quiet': True, 'no_warnings': True, 'ignoreerrors': True, 'nocheckcertificate': True,
+        # On se déguise en iPhone
         'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
     }
     
+    # Si on a trouvé des cookies, on les utilise
     if cookies_to_use:
         ydl_opts['cookiefile'] = cookies_to_use
 
@@ -183,63 +213,91 @@ def download_video(url):
             return ydl.prepare_filename(info), info.get('title', 'Recette'), info.get('thumbnail')
     except Exception as e: return None, str(e), None
 
-# --- IA ---
 def process_ai_full(video_path, title):
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
         video_file = genai.upload_file(path=video_path)
         while video_file.state.name == "PROCESSING": time.sleep(1); video_file = genai.get_file(video_file.name)
-        prompt = f"""Analyse: "{title}". Recette + Nutrition. INSTRUCTION: 1. Recette complète. 2. Nutri 1 PART. 3. Score Santé Sévère /100. JSON STRICT: {{ "nom": "...", "temps": "...", "tags": [], "score": 85, "portion_text": "Selon vidéo", "nutrition": {{ "cal": "...", "prot": "...", "carb": "...", "fat": "..." }}, "ingredients": [], "etapes": [] }}"""
-        response = model.generate_content([video_file, prompt], safety_settings={HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE})
+        
+        prompt = f"""
+        Analyse: "{title}". Recette + Nutrition.
+        INSTRUCTION: 1. Recette complète. 2. Nutri 1 PART. 3. Score Santé Sévère /100.
+        JSON STRICT: {{ "nom": "...", "temps": "...", "tags": [], "score": 85, "portion_text": "Selon vidéo", "nutrition": {{ "cal": "...", "prot": "...", "carb": "...", "fat": "..." }}, "ingredients": [], "etapes": [] }}
+        """
+        response = model.generate_content([video_file, prompt], safety_settings=safety_settings)
         genai.delete_file(video_file.name)
         return clean_ai_json(response.text)
-    except Exception as e: return {"error": str(e)}
+    except Exception as e:
+        if os.path.exists(video_path):
+             try: os.remove(video_path)
+             except: pass
+        return {"error": str(e)}
 
 def generate_recipe_from_text(text_description):
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
-        prompt = f"""Crée une recette: "{text_description}". JSON STRICT: {{ "nom": "...", "temps": "...", "tags": [], "score": 85, "portion_text": "1 personne", "nutrition": {{ "cal": "...", "prot": "...", "carb": "...", "fat": "..." }}, "ingredients": [], "etapes": [] }}"""
-        response = model.generate_content(prompt, safety_settings={HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE})
+        prompt = f"""
+        Crée une recette saine basée sur ce texte : "{text_description}".
+        INSTRUCTION: Recette complète, note sévère, nutrition précise.
+        JSON STRICT: {{ "nom": "...", "temps": "...", "tags": [], "score": 85, "portion_text": "1 personne", "nutrition": {{ "cal": "...", "prot": "...", "carb": "...", "fat": "..." }}, "ingredients": [], "etapes": [] }}
+        """
+        response = model.generate_content(prompt, safety_settings=safety_settings)
         return clean_ai_json(response.text)
     except Exception as e: return {"error": str(e)}
 
 def suggest_frigo_recipes(ingredient, nb_pers):
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
-        prompt = f"""J'ai SEULEMENT: "{ingredient}". 3 recettes simples. {nb_pers} PERS. JSON LIST: [ {{ "nom": "...", "temps": "...", "score": 75, "portion_text": "Pour {nb_pers} p.", "nutrition": {{...}}, "ingredients": [...], "etapes_courtes": "..." }} ]"""
-        response = model.generate_content(prompt)
+        prompt = f"""
+        J'ai SEULEMENT: "{ingredient}".
+        Propose 3 recettes simples (max 2-3 ingrédients ajoutés).
+        Ingrédients pour {nb_pers} PERSONNES. Nutrition pour 1.
+        LISTE JSON: [ {{ "nom": "...", "temps": "...", "score": 75, "portion_text": "Pour {nb_pers} p.", "nutrition": {{ "cal": "...", "prot": "...", "carb": "...", "fat": "..." }}, "ingredients": ["..."], "etapes_courtes": "..." }} ]
+        """
+        response = model.generate_content(prompt, safety_settings=safety_settings)
         return clean_ai_json(response.text)
-    except: return {"error": "IA"}
+    except Exception as e: return {"error": str(e)}
 
 def generate_chef_proposals(req, nb_pers):
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
-        prompt = f"""3 recettes pour "{req}". 1. Rapide 2. Gourmande 3. Originale. {nb_pers} Pers. JSON LIST: [ {{ "nom": "...", "type": "Rapide", "score": 80, "portion_text": "Pour {nb_pers} p.", "nutrition": {{...}}, "ingredients": [...], "etapes": [...] }} ]"""
-        response = model.generate_content(prompt)
+        prompt = f"""
+        3 recettes pour : "{req}".
+        1. Rapide. 2. Gourmande. 3. Originale.
+        Quantités: {nb_pers} Pers. Nutri: 1 Pers.
+        LISTE JSON: [ {{ "nom": "...", "type": "Rapide", "score": 80, "portion_text": "Pour {nb_pers} p.", "nutrition": {{...}}, "ingredients": [...], "etapes": [...] }}, ... ]
+        """
+        response = model.generate_content(prompt, safety_settings=safety_settings)
         return clean_ai_json(response.text)
-    except: return {"error": "IA"}
+    except Exception as e: return {"error": str(e)}
 
 def generate_workout(time_min, intensity, place, tools):
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
-        prompt = f"""Sport {time_min}min {intensity} {place} {tools}. JSON STRICT: {{ "titre": "...", "resume": "...", "echauffement": [], "circuit": [ {{"exo": "...", "rep": "...", "repos": "..."}} ], "cooldown": [] }}"""
-        response = model.generate_content(prompt)
+        prompt = f"""
+        Sport. Temps: {time_min} min. Int: {intensity}. Lieu: {place}. Matos: {tools}.
+        JSON STRICT: {{ "titre": "...", "resume": "...", "echauffement": [], "circuit": [ {{"exo": "...", "rep": "...", "repos": "..."}} ], "cooldown": [] }}
+        """
+        response = model.generate_content(prompt, safety_settings=safety_settings)
         return clean_ai_json(response.text)
-    except: return {"error": "IA"}
+    except Exception as e: return {"error": str(e)}
 
 def analyze_alternative(prod):
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
         prompt = f"""Analyse "{prod}". JSON STRICT: {{ "verdict": "Bon/Mauvais/Moyen", "analyse": "...", "alternative": "...", "recette_rapide": "..." }}"""
-        response = model.generate_content(prompt)
+        response = model.generate_content(prompt, safety_settings=safety_settings)
         return clean_ai_json(response.text)
-    except: return {"error": "IA"}
+    except Exception as e: return {"error": str(e)}
 
-# --- UI COMPONENTS ---
+# --- UI HELPERS ---
+
 def display_score(score):
     try: s = int(score)
     except: s = 50
-    color = "#2ed573" if s >= 80 else "#ffa502" if s >= 50 else "#ff4757"
+    if s >= 80: color = "#2ed573"
+    elif s >= 50: color = "#ffa502"
+    else: color = "#ff4757"
     st.markdown(f"<span style='background-color:{color};' class='score-badge'>{s}/100</span>", unsafe_allow_html=True)
 
 def display_nutrition_row(nutri_data):
@@ -255,11 +313,14 @@ def display_recipe_card_full(r, url, thumb, show_save=False):
     with c_titre:
         st.header(r.get('nom', 'Recette'))
         if r.get('type'): st.caption(f"Style : {r.get('type')}")
-    with c_badge: st.markdown(f"<div style='text-align:right;'><span class='portion-badge'>👥 {r.get('portion_text', 'Standard')}</span></div>", unsafe_allow_html=True)
+    with c_badge:
+        st.markdown(f"<div style='text-align:right;'><span class='portion-badge'>👥 {r.get('portion_text', 'Standard')}</span></div>", unsafe_allow_html=True)
+
     display_score(r.get('score', 50))
     st.write(f"⏱️ **{r.get('temps', '?')}**")
     st.info("📊 Nutrition (1 part)")
     display_nutrition_row(r.get('nutrition', {}))
+    
     col1, col2 = st.columns([1, 2])
     with col1:
         if thumb and "http" in thumb: st.image(thumb, use_container_width=True)
@@ -268,40 +329,98 @@ def display_recipe_card_full(r, url, thumb, show_save=False):
             st.write("")
             if st.button("💾 Sauvegarder", type="primary", key=f"save_{r.get('nom')}"):
                 final_thumb = thumb
-                if not thumb or thumb == "AI_GENERATED": final_thumb = generate_image_url(r.get('nom'))
+                if not thumb or thumb == "AI_GENERATED":
+                    final_thumb = generate_image_url(r.get('nom'))
                 add_recipe(r, url, final_thumb)
-                st.balloons(); st.toast("Ajouté !", icon="✅"); time.sleep(1); st.rerun()
+                st.balloons()
+                st.toast("Ajouté !", icon="✅")
+                time.sleep(1)
+                st.rerun()
     with col2:
         st.subheader("Ingrédients")
         for i in r.get('ingredients', []): st.write(f"- {i}")
         st.subheader("Instructions")
         for i, s in enumerate(r.get('etapes', []), 1): st.write(f"**{i}.** {s}")
 
+# --- CONTENU COMPLET COMPARATEUR (REMIS A NEUF) ---
 def show_comparator_examples():
     examples = {
-        "Coca-Cola": { "verdict": "Mauvais", "alt_titre": "Eau Infusée Citron-Menthe", "desc": "Sucre liquide (35g), acide, addiction.", "alt_recette": "Eau pétillante, citron vert, concombre, menthe." },
-        "Nutella": { "verdict": "Mauvais", "alt_titre": "Pâte Maison Express", "desc": "55% Sucre, Huile de Palme.", "alt_recette": "Purée de noisette + Cacao + Miel." },
-        "Chips": { "verdict": "Mauvais", "alt_titre": "Pois Chiches Croustillants", "desc": "Friture, Calories vides, Sel.", "alt_recette": "Pois chiches + Épices au four." },
+        "Coca-Cola": {
+            "verdict": "Mauvais",
+            "desc": """
+            **Composition :** Eau gazeuse, Sucre (35g par canette = 7 sucres !), Acide phosphorique, Caféine.
+            **Pourquoi c'est mauvais :**
+            * **Sucre liquide :** Pic d'insuline immédiat, stockage gras, risque diabète.
+            * **Acide phosphorique :** Attaque l'émail des dents.
+            * **Addiction :** Le mélange sucre/caféine crée une dépendance.
+            """,
+            "alt_titre": "Eau Infusée Fraîcheur Citron-Menthe",
+            "alt_recette": "Dans 1L d'eau pétillante: 1/2 citron vert, 1/4 concombre, menthe, glaçons."
+        },
+        "Nutella": {
+            "verdict": "Mauvais",
+            "desc": """
+            **Composition :** Sucre (55%), Huile de Palme (23%), Noisettes (13%), Cacao maigre.
+            **Pourquoi c'est mauvais :** C'est un glaçage au sucre. Huile de palme riche en gras saturés.
+            """,
+            "alt_titre": "Pâte à tartiner Maison Express",
+            "alt_recette": "2 c.à.s purée noisette + 1 c.à.c cacao + 1 c.à.c sirop d'agave."
+        },
+        "Chips Industrielles": {
+            "verdict": "Mauvais",
+            "desc": """
+            **Composition :** Pommes de terre, Huile, Sel, Exhausteurs.
+            **Pourquoi c'est mauvais :** Friture (Acrylamide cancérigène), Densité calorique extrême.
+            """,
+            "alt_titre": "Pois Chiches Croustillants",
+            "alt_recette": "Pois chiches + Huile olive + Paprika au four 200°C 25min."
+        },
+        "Pizza Surgelée": {
+            "verdict": "Moyen / Mauvais",
+            "desc": """
+            **Composition :** Pâte raffinée, Faux fromage, Jambon reconstitué, Sucre caché.
+            **Pourquoi c'est mauvais :** Ingrédients bas de gamme, Trop de sel.
+            """,
+            "alt_titre": "Pizza Tortilla Express",
+            "alt_recette": "Tortilla complète + Purée tomate + Mozza + Jambon + Origan. Poêle 5 min."
+        },
+         "Céréales Lion / Trésor": {
+            "verdict": "Mauvais",
+            "desc": """
+            **Composition :** Blé, Sucre, Huile, Glucose.
+            **Pourquoi c'est mauvais :** C'est un dessert. Hypoglycémie à 10h.
+            """,
+            "alt_titre": "Porridge 'Lion' Healthy",
+            "alt_recette": "Flocons avoine + Carré chocolat noir fondu + Beurre cacahuète."
+        }
     }
+
     for nom, data in examples.items():
         with st.expander(f"❌ {nom} -> 🟢 {data['alt_titre']}"):
-            st.error(f"VERDICT : {data['verdict']}"); st.write(data['desc']); st.success(f"✅ MIEUX : {data['alt_titre']}"); st.info(data['alt_recette'])
+            st.error(f"VERDICT : {data['verdict']}")
+            st.markdown(data['desc'])
+            st.divider()
+            st.success(f"✅ MIEUX : {data['alt_titre']}")
+            st.info(data['alt_recette'])
 
-# --- SIDEBAR (Fallback Cookie) ---
+# --- SIDEBAR (CONFIG COOKIES) ---
 with st.sidebar:
     st.header("⚙️ Configuration")
     if "INSTAGRAM_COOKIES" in st.secrets:
-        st.success("🍪 Cookies chargés depuis les Secrets (Mode Sécurisé).")
+        st.success("🍪 Cookies chargés depuis les Secrets (Cloud).")
     else:
-        st.info("Mode Manuel : Upload cookies.txt ici si Insta bloque.")
+        st.info("Mode Manuel : Si Instagram bloque, upload cookies.txt ici.")
         uploaded_cookies = st.file_uploader("Fichier cookies.txt", type=["txt"])
         if uploaded_cookies:
             cookie_path = os.path.join(TEMP_FOLDER, "cookies.txt")
             with open(cookie_path, "wb") as f: f.write(uploaded_cookies.getbuffer())
             st.session_state.cookies_path = cookie_path
             st.success("Cookies chargés ! ✅")
+        else:
+            st.session_state.cookies_path = None
 
 # --- MAIN ---
+
 st.title("🥘 Goumin")
 tabs = st.tabs(["🔥 Import", "🥕 Frigo Magic", "💡 Chef IA", "🔄 Comparateur", "🏋️ Coach", "📚 Bibliothèque"])
 
@@ -313,11 +432,11 @@ with tabs[0]:
     if st.button("Analyser"):
         if url:
             with st.status("Analyse...", expanded=True) as status:
-                # Le script gère auto les cookies (secrets ou upload)
+                # Utilisation des cookies (Session ou Secret)
                 video_path, title, thumb = download_video(url)
                 
                 if video_path:
-                    status.write("Vidéo OK. IA en cours...")
+                    status.write("Vidéo récupérée. IA en cours...")
                     recipe = process_ai_full(video_path, title)
                     status.update(label="Fini", state="complete")
                     if "error" in recipe: st.error(recipe['error'])
@@ -328,12 +447,13 @@ with tabs[0]:
                         st.rerun()
                 else:
                     status.update(label="Bloqué par Insta", state="error")
-                    st.warning("⚠️ Instagram a bloqué le téléchargement malgré tout.")
+                    st.warning("⚠️ Instagram a bloqué le téléchargement. Pas grave ! Utilise l'option manuelle ci-dessous.")
                     st.session_state.show_manual_input = True
 
     if st.session_state.get('show_manual_input'):
         st.divider()
-        manual_text = st.text_area("📋 Colle la description / nom du plat :")
+        st.info("💡 Colle la description de la vidéo ou écris juste le nom du plat (ex: 'Pâtes Carbonara').")
+        manual_text = st.text_area("📋 Description / Nom du plat :")
         if st.button("Lancer avec le texte"):
             with st.spinner("Génération..."):
                 recipe = generate_recipe_from_text(manual_text)
@@ -359,6 +479,7 @@ with tabs[1]:
             res = suggest_frigo_recipes(ing, nb_p)
             if "error" in res: st.error("Erreur IA")
             elif isinstance(res, list): st.session_state.frigo_suggestions = res
+            
     if st.session_state.frigo_suggestions:
         st.divider()
         for i, s in enumerate(st.session_state.frigo_suggestions):
@@ -366,7 +487,9 @@ with tabs[1]:
                 c1, c2 = st.columns([1, 3])
                 with c1: st.image(generate_image_url(s.get('nom')), use_container_width=True)
                 with c2:
-                    display_score(s.get('score', 50)); st.caption(f"{s.get('portion_text')}"); display_nutrition_row(s.get('nutrition', {}))
+                    display_score(s.get('score', 50))
+                    st.caption(f"{s.get('portion_text')}")
+                    display_nutrition_row(s.get('nutrition', {}))
                     st.write("**Ingrédients:** " + ", ".join(s.get('ingredients', [])))
                     if st.button("Choisir", key=f"btn_f_{i}"):
                         add_recipe(s, "Frigo", generate_image_url(s.get('nom')))
@@ -388,64 +511,167 @@ with tabs[2]:
         cols = st.columns(3)
         for i, r in enumerate(st.session_state.generated_recipes):
             with cols[i]:
-                st.subheader(r.get('type', 'Recette')); st.image(generate_image_url(r.get('nom')), use_container_width=True)
-                st.write(f"**{r.get('nom')}**"); display_score(r.get('score'))
-                if st.button("Voir", key=f"view_{i}"): st.session_state.current_recipe = r; st.session_state.current_url = "Chef IA"; st.session_state.current_thumb = "AI_GENERATED"; st.rerun()
+                st.subheader(r.get('type', 'Recette'))
+                st.image(generate_image_url(r.get('nom')), use_container_width=True)
+                st.write(f"**{r.get('nom')}**")
+                display_score(r.get('score'))
+                if st.button("Voir", key=f"view_{i}"):
+                    st.session_state.current_recipe = r
+                    st.session_state.current_url = "Chef IA"
+                    st.session_state.current_thumb = "AI_GENERATED"
+                    st.rerun()
 
 # 4. COMPARATEUR
 with tabs[3]:
-    st.header("Comparateur")
-    show_comparator_examples(); st.divider(); prod = st.text_input("Comparer un autre produit")
-    if st.button("Analyser Produit") and prod: st.session_state.alternative_result = analyze_alternative(prod)
+    st.header("Comparateur Expert")
+    show_comparator_examples() # Affiche les 5 exemples complets
+    st.divider()
+    st.subheader("🔍 Analyser un autre produit")
+    prod = st.text_input("Nom du produit (Ex: Kinder Bueno)")
+    if st.button("Comparer ce produit"):
+        st.session_state.alternative_result = analyze_alternative(prod)
+
     if st.session_state.alternative_result:
         res = st.session_state.alternative_result
-        if "error" not in res: st.success(res.get('verdict')); st.write(res.get('analyse')); st.info(f"Mieux : {res.get('alternative')}")
+        if "error" not in res:
+            st.success(res.get('verdict'))
+            st.write(res.get('analyse'))
+            st.info(f"Mieux : {res.get('alternative')}")
 
-# 5. COACH
+# 5. COACH & SPORT (CONTENU COMPLET RESTITUÉ)
 with tabs[4]:
     st.header("🏋️ Coach Goumin")
-    with st.expander("🏃 Générateur Séance"):
-        c1, c2, c3 = st.columns(3)
-        duree = c1.slider("Min", 10, 90, 30)
-        ints = c2.selectbox("Intensité", ["Moyenne", "Elevée"])
-        lieu = c3.selectbox("Lieu", ["Maison", "Salle"])
-        if st.button("Créer"): plan = generate_workout(duree, ints, lieu, ""); st.session_state.workout_plan = plan
-    if st.session_state.workout_plan:
-        st.write(st.session_state.workout_plan.get('resume'))
-        for x in st.session_state.workout_plan.get('circuit', []): st.write(f"💪 {x.get('exo')} | {x.get('rep')}")
     
+    with st.expander("🏃 Générateur de Séance Sport", expanded=True):
+        c1, c2, c3 = st.columns(3)
+        duree = c1.slider("Durée (min)", 10, 90, 30)
+        intensite = c2.selectbox("Intensité", ["Douce", "Moyenne", "Elevée", "Hardcore"])
+        lieu = c3.selectbox("Lieu", ["Maison (Poids corps)", "Maison (Equipé)", "Salle", "Extérieur"])
+        
+        matos = ""
+        if "Equipé" in lieu:
+            matos = st.multiselect("Matériel dispo :", ["Haltères", "Vélo Appart", "Elastique", "Tapis"])
+            
+        if st.button("Créer ma séance"):
+            with st.spinner("Coaching..."):
+                plan = generate_workout(duree, intensite, lieu, str(matos))
+                st.session_state.workout_plan = plan
+        
+        if st.session_state.workout_plan:
+            p = st.session_state.workout_plan
+            st.subheader(f"🔥 {p.get('titre')}")
+            st.write(p.get('resume'))
+            
+            st.markdown("### 1. Echauffement")
+            for e in p.get('echauffement', []): st.write(f"- {e}")
+            
+            st.markdown("### 2. Circuit")
+            for ex in p.get('circuit', []):
+                st.write(f"💪 **{ex.get('exo')}** | {ex.get('rep')} | Repos: {ex.get('repos')}")
+                
+            st.markdown("### 3. Retour au calme")
+            for c in p.get('cooldown', []): st.write(f"- {c}")
+            
+    # CALCULATEURS
     c1, c2 = st.columns(2)
     with c1:
         with st.expander("⚖️ IMC (Corpulence)"):
-            poids = st.number_input("Poids (kg)", 40, 150, 70); taille = st.number_input("Taille (cm)", 100, 220, 175)
-            if st.button("Calcul IMC"): i = poids/((taille/100)**2); st.metric("IMC", f"{i:.1f}")
+            poids = st.number_input("Poids (kg)", 40, 150, 70)
+            taille = st.number_input("Taille (cm)", 100, 220, 175)
+            if st.button("Calcul IMC"): 
+                i = poids/((taille/100)**2)
+                st.metric("IMC", f"{i:.1f}")
+                if i<18.5: st.warning("Maigreur")
+                elif i<25: st.success("Normal")
+                else: st.error("Surpoids")
     with c2:
         with st.expander("🔥 TDEE (Besoins Kcal)"):
-            age = st.number_input("Age", 10, 100, 25); sex = st.radio("Sexe", ["H", "F"], horizontal=True); act = st.selectbox("Activité", ["Sédentaire", "Léger", "Modéré", "Intense"])
-            if st.button("Calcul"): b = (10*poids)+(6.25*taille)-(5*age); b = (b+5) if sex=="H" else (b-161); f = {"Sédentaire":1.2, "Léger":1.375, "Modéré":1.55, "Intense":1.725}; res = int(b*f[act]); st.metric("Maintenance", f"{res} kcal")
-    
+            age = st.number_input("Age", 10, 100, 25)
+            sex = st.radio("Sexe", ["H", "F"], horizontal=True)
+            act = st.selectbox("Activité", ["Sédentaire", "Léger", "Modéré", "Intense"])
+            if st.button("Calcul"):
+                b = (10*poids)+(6.25*taille)-(5*age)
+                b = (b+5) if sex=="H" else (b-161)
+                f = {"Sédentaire":1.2, "Léger":1.375, "Modéré":1.55, "Intense":1.725}
+                res = int(b*f[act])
+                st.metric("Maintenance", f"{res} kcal")
+                st.caption(f"Sèche: {res-400} | Masse: {res+300}")
+
     st.divider()
-    with st.expander("🥩 LES PROTÉINES"): st.write("1.6g à 2g par kg.")
-    with st.expander("🍞 LES GLUCIDES"): st.write("Privilégier IG Bas.")
-    with st.expander("🥑 LES LIPIDES"): st.write("Minimum 1g/kg.")
-    
-# 6. BIBLIOTHEQUE
+
+    # WIKI COMPLET (TEXTES RESTITUÉS)
+    with st.expander("🥩 LES PROTÉINES (Le Constructeur)"):
+        st.markdown("""
+        **Rôle :** Construire le muscle, réparer les tissus, couper la faim (satiété).
+        **Combien ?** 1.6g à 2g par kg de poids (Sportif).
+        **Sources :** Poulet, Boeuf 5%, Poisson, Oeufs, Skyr, Lentilles, Tofu.
+        **❌ A éviter :** Saucisses, nuggets, charcuterie.
+        """)
+
+    with st.expander("🍞 LES GLUCIDES (Le Carburant)"):
+        st.markdown("""
+        **Rôle :** Énergie pour l'entraînement et le cerveau.
+        **✅ Les Bons (IG Bas) :** Avoine, Riz Basmati, Patate Douce, Pâtes Complètes, Fruits.
+        **⚠️ Les Rapides :** Riz blanc, Banane mûre, Miel (autour du sport).
+        **❌ A bannir :** Sucre blanc, Sodas, Gâteaux industriels.
+        """)
+
+    with st.expander("🥑 LES LIPIDES (Le Protecteur)"):
+        st.markdown("""
+        **Rôle :** Hormones, cerveau. Ne jamais descendre sous 1g/kg.
+        **✅ Bons Gras :** Huile d'Olive (cru), Avocat, Noix/Amandes, Saumon, Jaune d'oeuf.
+        **❌ Mauvais Gras :** Friture, Huile tournesol chauffée, Gras trans.
+        """)
+        
+    with st.expander("💧 L'HYDRATATION"):
+        st.markdown("**3 Litres / jour minimum.** Une urine claire = bonne hydratation.")
+
+    st.subheader("🛑 DO & DON'T")
+    c_do, c_dont = st.columns(2)
+    with c_do:
+        st.success("""
+        **✅ DO**
+        1. Légumes à chaque repas (Volume).
+        2. Sommeil 7-8h (Récupération).
+        3. Peser aliments crus.
+        4. Marcher (10k pas).
+        """)
+    with c_dont:
+        st.error("""
+        **❌ DON'T**
+        1. Boire ses calories (Sodas).
+        2. Régimes famine (1000kcal).
+        3. Culpabiliser après un écart.
+        """)
+
+# 6. BIBLIOTHEQUE (SYSTEME VUE DETAILLEE)
 with tabs[5]:
     if st.button("🔄 Actualiser"): st.rerun()
     db = load_db()
+    
+    # --- LOGIQUE D'AFFICHAGE VUE DETAILLEE ---
     if st.session_state.selected_recipe_id:
         r = next((item for item in db if item["id"] == st.session_state.selected_recipe_id), None)
         if r:
-            if st.button("⬅️ Retour"): st.session_state.selected_recipe_id = None; st.rerun()
+            if st.button("⬅️ Retour à la bibliothèque"):
+                st.session_state.selected_recipe_id = None
+                st.rerun()
+            
             display_recipe_card_full(r, r['url'], r['image_path'], show_save=False)
-            st.divider(); st.subheader("🖼️ Modifier la photo"); c1, c2 = st.columns(2)
-            with c1: new_url_input = st.text_input("Lien URL")
-            with c2: uploaded_file = st.file_uploader("Upload", type=['png', 'jpg', 'jpeg'])
-            if st.button("💾 Sauvegarder Image"):
+            
+            st.divider()
+            st.subheader("🖼️ Modifier la photo du plat")
+            c1, c2 = st.columns(2)
+            with c1: new_url_input = st.text_input("Option 1 : Lien URL d'une image")
+            with c2: uploaded_file = st.file_uploader("Option 2 : Uploader une photo", type=['png', 'jpg', 'jpeg'])
+            
+            if st.button("💾 Enregistrer la nouvelle image"):
                 new_path = None
                 if uploaded_file: new_path = save_uploaded_file(uploaded_file, r['id'])
                 elif new_url_input: new_path = new_url_input
-                if new_path: update_recipe_image(r['id'], new_path); st.rerun()
+                if new_path: update_recipe_image(r['id'], new_path); st.success("Mise à jour !"); time.sleep(1); st.rerun()
+
+    # --- LOGIQUE D'AFFICHAGE GRILLE ---
     else:
         if not db: st.info("Vide.")
         else:
@@ -454,9 +680,14 @@ with tabs[5]:
                 with cols[i % 6]:
                     with st.container(border=True):
                         img_path = item.get('image_path')
-                        if img_path and (os.path.exists(img_path) or "http" in img_path): st.image(img_path, use_container_width=True)
-                        else: st.image(generate_image_url(item['nom']), use_container_width=True)
-                        st.markdown(f"<div class='small-text'><b>{item['nom'][:25]}..</b></div>", unsafe_allow_html=True); display_score(item.get('score'))
+                        if img_path and (os.path.exists(img_path) or "http" in img_path):
+                             st.image(img_path, use_container_width=True)
+                        else:
+                             st.image(generate_image_url(item['nom']), use_container_width=True)
+                        
+                        st.markdown(f"<div class='small-text'><b>{item['nom'][:30]}..</b></div>", unsafe_allow_html=True)
+                        display_score(item.get('score'))
+                        
                         c_voir, c_del = st.columns([3, 1])
                         with c_voir:
                             if st.button("Voir", key=f"see_{item['id']}"): st.session_state.selected_recipe_id = item['id']; st.rerun()
