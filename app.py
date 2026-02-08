@@ -22,8 +22,7 @@ st.set_page_config(page_title="Goumin", page_icon=favicon, layout="wide")
 # --- API KEY ---
 if "GOOGLE_API_KEY" in st.secrets:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
-else:
-    API_KEY = "AIzaSyDOUJX8GSxh_-yP8MXYGbGdaN8ASPNW2EA".strip()
+    
 
 os.environ["GOOGLE_API_KEY"] = API_KEY
 genai.configure(api_key=API_KEY)
