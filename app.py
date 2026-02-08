@@ -66,7 +66,7 @@ st.markdown("""
     /* BOUTONS (Gros et faciles à toucher) */
     .stButton>button {
         width: 100%; border-radius: 16px; font-weight: 700; min-height: 55px; border: none;
-        background: linear-gradient(135deg, #FF6B6B 0%, #FF4757 100%); color: white;
+        background: #141414; color: white;
         font-size: 16px !important;
         box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
     }
