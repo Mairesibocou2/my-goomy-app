@@ -258,19 +258,33 @@ def suggest_frigo_recipes(ingredient, nb_pers):
         return clean_ai_json(response.text)
     except Exception as e: return {"error": str(e)}
 
-def generate_chef_proposals(req, nb_pers):
+def generate_chef_proposals(req, frigo_items, options, nb_pers):
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
+        
+        # On construit le prompt selon les options cochées
+        constraint_txt = ""
+        if "Healthy" in options: constraint_txt += "Recettes très saines et légères. "
+        if "Economique" in options: constraint_txt += "Ingrédients pas chers. "
+        if "Rapide" in options: constraint_txt += "Prêt en 15 min max. "
+        if "Peu d'ingrédients" in options: constraint_txt += "Max 5 ingrédients principaux. "
+        
+        frigo_txt = f"J'ai DÉJÀ au frigo : {frigo_items} (à utiliser en priorité)." if frigo_items else ""
+
         prompt = f"""
-        3 recettes pour : "{req}".
-        1. Rapide. 2. Gourmande. 3. Originale.
+        Role: Chef Cuisinier Créatif.
+        Demande : 3 recettes pour "{req}".
+        {frigo_txt}
+        Contraintes : {constraint_txt}
         Quantités: {nb_pers} Pers. Nutri: 1 Pers.
-        LISTE JSON: [ {{ "nom": "...", "type": "Rapide", "score": 80, "portion_text": "Pour {nb_pers} p.", "nutrition": {{...}}, "ingredients": [...], "etapes": [...] }}, ... ]
+        
+        IMPORTANT: Pour les ingrédients, structure simple.
+        LISTE JSON: [ {{ "nom": "...", "type": "Rapide", "score": 80, "portion_text": "Pour {nb_pers} p.", "nutrition": {{...}}, "ingredients": ["ingrédient 1", "ingrédient 2"], "etapes": [...] }} ]
         """
         response = model.generate_content(prompt, safety_settings=safety_settings)
         return clean_ai_json(response.text)
     except Exception as e: return {"error": str(e)}
-
+    
 def generate_workout(time_min, intensity, place, tools):
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
