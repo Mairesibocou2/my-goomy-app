@@ -33,7 +33,7 @@ TEMP_FOLDER = "temp"
 Path(MEDIA_FOLDER).mkdir(exist_ok=True)
 Path(TEMP_FOLDER).mkdir(exist_ok=True)
 
-# --- CSS ---
+# --- CSS PREMIUM ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
@@ -83,17 +83,11 @@ def load_db():
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            for r in data:
-                if 'tags' not in r: r['tags'] = []
-                if 'nutrition' not in r: r['nutrition'] = {}
-                if 'score' not in r: r['score'] = 50
-                if 'portion_text' not in r: r['portion_text'] = "Non spécifié"
             return data
     except: return []
 
 def save_db(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
+    with open(DB_FILE, "w", encoding="utf-8") as f: json.dump(data, f, indent=4, ensure_ascii=False)
 
 def save_image_locally(url_image, nom_fichier):
     try:
@@ -159,8 +153,19 @@ def generate_image_url(food_name):
     clean_name = urllib.parse.quote(food_name)
     return f"https://image.pollinations.ai/prompt/delicious_{clean_name}_food_photography_high_quality?width=400&height=300&nologo=true"
 
-# --- DOWNLOADER AVEC COOKIES ---
-def download_video(url, cookies_file=None):
+# --- DOWNLOADER AVEC COOKIES SECRETS OU UPLOAD ---
+def download_video(url):
+    # 1. Priorité aux cookies uploadés manuellement
+    cookies_to_use = st.session_state.cookies_path
+    
+    # 2. Sinon, on cherche dans les SECRETS Streamlit
+    if not cookies_to_use and "INSTAGRAM_COOKIES" in st.secrets:
+        secret_cookies_path = os.path.join(TEMP_FOLDER, "secret_cookies.txt")
+        # On crée le fichier temporairement depuis les secrets
+        with open(secret_cookies_path, "w", encoding="utf-8") as f:
+            f.write(st.secrets["INSTAGRAM_COOKIES"])
+        cookies_to_use = secret_cookies_path
+
     ydl_opts = {
         'format': 'best',
         'outtmpl': f'{TEMP_FOLDER}/video_%(id)s.%(ext)s',
@@ -168,9 +173,8 @@ def download_video(url, cookies_file=None):
         'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
     }
     
-    # SI COOKIES PRESENTS
-    if cookies_file:
-        ydl_opts['cookiefile'] = cookies_file
+    if cookies_to_use:
+        ydl_opts['cookiefile'] = cookies_to_use
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -283,20 +287,19 @@ def show_comparator_examples():
         with st.expander(f"❌ {nom} -> 🟢 {data['alt_titre']}"):
             st.error(f"VERDICT : {data['verdict']}"); st.write(data['desc']); st.success(f"✅ MIEUX : {data['alt_titre']}"); st.info(data['alt_recette'])
 
-# --- SIDEBAR (COOKIES) ---
+# --- SIDEBAR (Fallback Cookie) ---
 with st.sidebar:
     st.header("⚙️ Configuration")
-    st.info("Si Instagram bloque, charge ton fichier cookies.txt ici.")
-    uploaded_cookies = st.file_uploader("Fichier cookies.txt", type=["txt"])
-    if uploaded_cookies:
-        # Sauvegarde temporaire du cookie
-        cookie_path = os.path.join(TEMP_FOLDER, "cookies.txt")
-        with open(cookie_path, "wb") as f:
-            f.write(uploaded_cookies.getbuffer())
-        st.session_state.cookies_path = cookie_path
-        st.success("Cookies chargés ! ✅")
+    if "INSTAGRAM_COOKIES" in st.secrets:
+        st.success("🍪 Cookies chargés depuis les Secrets (Mode Sécurisé).")
     else:
-        st.session_state.cookies_path = None
+        st.info("Mode Manuel : Upload cookies.txt ici si Insta bloque.")
+        uploaded_cookies = st.file_uploader("Fichier cookies.txt", type=["txt"])
+        if uploaded_cookies:
+            cookie_path = os.path.join(TEMP_FOLDER, "cookies.txt")
+            with open(cookie_path, "wb") as f: f.write(uploaded_cookies.getbuffer())
+            st.session_state.cookies_path = cookie_path
+            st.success("Cookies chargés ! ✅")
 
 # --- MAIN ---
 st.title("🥘 Goumin")
@@ -310,8 +313,8 @@ with tabs[0]:
     if st.button("Analyser"):
         if url:
             with st.status("Analyse...", expanded=True) as status:
-                # Utilisation des cookies si présents
-                video_path, title, thumb = download_video(url, st.session_state.cookies_path)
+                # Le script gère auto les cookies (secrets ou upload)
+                video_path, title, thumb = download_video(url)
                 
                 if video_path:
                     status.write("Vidéo OK. IA en cours...")
@@ -325,7 +328,7 @@ with tabs[0]:
                         st.rerun()
                 else:
                     status.update(label="Bloqué par Insta", state="error")
-                    st.warning("⚠️ Instagram a bloqué le téléchargement. Utilise l'option manuelle ci-dessous ou ajoute tes cookies dans la barre latérale.")
+                    st.warning("⚠️ Instagram a bloqué le téléchargement malgré tout.")
                     st.session_state.show_manual_input = True
 
     if st.session_state.get('show_manual_input'):
