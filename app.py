@@ -480,7 +480,7 @@ with st.sidebar:
 # --- MAIN ---
 
 st.title("🥘 Goumin")
-tabs = st.tabs(["🔥 Import", "👨‍🍳 Super Chef", "🛒 Courses", "🔄 Comparateur", "🏋️ Coach", "📚 Bibliothèque"])
+tabs = st.tabs(["👨‍🍳 My name is Chef", "🛒 Courses", "🔄 Comparateur", "🏋️ Coach", "📚 Bibliothèque"])
 
 # 1. CUISINE (FUSION IMPORT & CHEF)
 with tabs[0]:
