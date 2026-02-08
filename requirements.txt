@@ -1,6 +1,5 @@
 streamlit
 yt-dlp
 google-generativeai
-streamlit-gsheets
+st-gsheets-connection
 pandas
-st-connection
