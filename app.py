@@ -40,7 +40,7 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
-    .stApp { background-color: #141414; }
+    .stApp { background-color: #F7F7F7; }
 
     /* Ajustement précis de la taille du logo */
     [data-testid="stColumn"]:nth-child(2) img {
@@ -58,7 +58,7 @@ st.markdown("""
     
     /* CARTES RECETTES (Style iOS) */
     div[data-testid="stVerticalBlock"] > div[style*="border"] {
-        background-color: #141414; 
+        background-color: #F7F7F7; 
         border-radius: 24px !important; /* Plus arrondi */
         border: none !important;
         box-shadow: 0 10px 20px rgba(0,0,0,0.05); 
@@ -91,7 +91,7 @@ st.markdown("""
         padding-bottom: 5px;
     }
     .stTabs [data-baseweb="tab"] {
-        background-color: #141414; border-radius: 20px; border: none; 
+        background-color: #FFFFFF; border-radius: 20px; border: none; 
         padding: 8px 20px; font-weight: 600; font-size: 14px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
