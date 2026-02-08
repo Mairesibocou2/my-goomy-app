@@ -714,7 +714,7 @@ with tabs[3]:
         """)
 
 with tabs[4]:
-if st.button("🔄 Actualiser"): st.rerun()
+    if st.button("🔄 Actualiser"): st.rerun()
     db = load_db()
     
     # --- VUE DÉTAILLÉE (Si on a cliqué sur une recette) ---
