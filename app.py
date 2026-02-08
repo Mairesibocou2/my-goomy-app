@@ -19,13 +19,12 @@ elif os.path.exists("favicon.ico"):
 
 st.set_page_config(page_title="Goumin", page_icon=favicon, layout="wide")
 
-# API KEY
-# Pour la mise en ligne, l'appli cherchera d'abord dans les "Secrets" de Streamlit Cloud
-# Sinon elle utilisera ta clé en dur (pour le local)
+# --- API KEY (AVEC CORRECTIF .STRIP() + SECRETS) ---
 if "GOOGLE_API_KEY" in st.secrets:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
 else:
-    API_KEY = "AIzaSyDOUJX8GSxh_-yP8MXYGbGdaN8ASPNW2EA"
+    # On ajoute .strip() pour éviter l'erreur "Illegal header value"
+    API_KEY = "AIzaSyDOUJX8GSxh_-yP8MXYGbGdaN8ASPNW2EA".strip()
 
 os.environ["GOOGLE_API_KEY"] = API_KEY
 genai.configure(api_key=API_KEY)
@@ -38,7 +37,6 @@ Path(MEDIA_FOLDER).mkdir(exist_ok=True)
 Path(TEMP_FOLDER).mkdir(exist_ok=True)
 
 # --- CSS PREMIUM (DESIGN APPLE) ---
-# C'est la seule partie modifiée pour le look
 st.markdown("""
 <style>
     /* Import Police Moderne */
@@ -63,6 +61,11 @@ st.markdown("""
         transition: transform 0.2s;
     }
     
+    div[data-testid="stVerticalBlock"] > div[style*="border"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+    }
+
     /* Boutons Principaux (Dégradé Rouge Goumin) */
     .stButton>button {
         width: 100%;
@@ -86,6 +89,10 @@ st.markdown("""
         padding: 10px;
         background-color: white;
     }
+    .stTextInput>div>div>input:focus, .stNumberInput>div>div>input:focus {
+        border-color: #FF4757;
+        box-shadow: 0 0 0 2px rgba(255, 71, 87, 0.2);
+    }
 
     /* Badges & Textes */
     .score-badge {padding: 4px 10px; border-radius: 15px; color: white; font-weight: bold; font-size: 0.8em; box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
@@ -107,6 +114,14 @@ st.markdown("""
         background-color: #FF4757 !important;
         color: white !important;
     }
+    
+    /* Métriques */
+    div[data-testid="stMetric"] {
+        background-color: #F8F9FA;
+        padding: 10px;
+        border-radius: 12px;
+        text-align: center;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -116,7 +131,6 @@ if 'generated_recipes' not in st.session_state: st.session_state.generated_recip
 if 'alternative_result' not in st.session_state: st.session_state.alternative_result = None
 if 'frigo_suggestions' not in st.session_state: st.session_state.frigo_suggestions = None
 if 'workout_plan' not in st.session_state: st.session_state.workout_plan = None
-# NOUVEAU : Pour gérer la vue détaillée dans la bibliothèque
 if 'selected_recipe_id' not in st.session_state: st.session_state.selected_recipe_id = None
 
 # --- SECURITE ---
@@ -215,8 +229,22 @@ def generate_image_url(food_name):
     clean_name = urllib.parse.quote(food_name)
     return f"https://image.pollinations.ai/prompt/delicious_{clean_name}_food_photography_high_quality?width=400&height=300&nologo=true"
 
+# --- CORRECTIF INSTAGRAM : headers ajoutés ---
 def download_video(url):
-    ydl_opts = {'format': 'worst', 'outtmpl': f'{TEMP_FOLDER}/video_%(id)s.%(ext)s', 'quiet': True, 'no_warnings': True, 'ignoreerrors': True}
+    ydl_opts = {
+        'format': 'worst', 
+        'outtmpl': f'{TEMP_FOLDER}/video_%(id)s.%(ext)s', 
+        'quiet': True, 
+        'no_warnings': True, 
+        'ignoreerrors': True,
+        'nocheckcertificate': True,
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-us,en;q=0.5',
+            'Sec-Fetch-Mode': 'navigate',
+        }
+    }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
@@ -343,20 +371,6 @@ def display_recipe_card_full(r, url, thumb, show_save=False):
 
 def show_comparator_examples():
     examples = {
-        "Coca-Cola": { "verdict": "Mauvais", "alt_titre": "Eau Infusée Citron-Menthe", "desc": "Sucre liquide (35g), acide, addiction.", "alt_recette": "Eau pétillante, citron vert, concombre, menthe." },
-        "Nutella": { "verdict": "Mauvais", "alt_titre": "Pâte Maison Express", "desc": "55% Sucre, Huile de Palme.", "alt_recette": "Purée de noisette + Cacao + Miel." },
-        "Chips": { "verdict": "Mauvais", "alt_titre": "Pois Chiches Croustillants", "desc": "Friture, Calories vides, Sel.", "alt_recette": "Pois chiches + Épices au four." },
-    }
-    for nom, data in examples.items():
-        with st.expander(f"❌ {nom} -> 🟢 {data['alt_titre']}"):
-            st.error(f"VERDICT : {data['verdict']}")
-            st.write(data['desc'])
-            st.success(f"✅ MIEUX : {data['alt_titre']}")
-            st.info(data['alt_recette'])
-
-# --- CONTENU EXEMPLES COMPARATEUR (STATIQUE) ---
-def show_comparator_examples():
-    examples = {
         "Coca-Cola": {
             "verdict": "Mauvais",
             "desc": """
@@ -458,7 +472,7 @@ def show_comparator_examples():
             st.markdown(data['desc'])
             st.divider()
             st.success(f"✅ MIEUX : {data['alt_titre']}")
-            st.info(data['alt_recette'])            
+            st.info(data['alt_recette'])
 
 # --- INTERFACE ---
 
@@ -473,8 +487,11 @@ with tabs[0]:
         if url:
             with st.status("Analyse...", expanded=True) as status:
                 video_path, title, thumb = download_video(url)
-                if not video_path: status.update(label="Erreur", state="error")
+                if not video_path:
+                    status.update(label="Erreur", state="error")
+                    st.error("Téléchargement impossible. (Vérifie si la vidéo n'est pas privée)")
                 else:
+                    status.write("IA en cours...")
                     recipe = process_ai_full(video_path, title)
                     status.update(label="Fini", state="complete")
                     if "error" in recipe: st.error(recipe['error'])
@@ -557,18 +574,108 @@ with tabs[3]:
 # 5. COACH
 with tabs[4]:
     st.header("🏋️ Coach Goumin")
-    with st.expander("🏃 Générateur Séance"):
+    
+    with st.expander("🏃 Générateur de Séance Sport", expanded=True):
         c1, c2, c3 = st.columns(3)
-        duree = c1.slider("Min", 10, 90, 30)
-        ints = c2.selectbox("Intensité", ["Moyenne", "Elevée"])
-        lieu = c3.selectbox("Lieu", ["Maison", "Salle"])
-        if st.button("Créer"):
-            plan = generate_workout(duree, ints, lieu, "")
-            st.session_state.workout_plan = plan
-    if st.session_state.workout_plan:
-        st.write(st.session_state.workout_plan.get('resume'))
-        for x in st.session_state.workout_plan.get('circuit', []):
-            st.write(f"💪 {x.get('exo')} | {x.get('rep')}")
+        duree = c1.slider("Durée (min)", 10, 90, 30)
+        intensite = c2.selectbox("Intensité", ["Douce", "Moyenne", "Elevée", "Hardcore"])
+        lieu = c3.selectbox("Lieu", ["Maison (Poids corps)", "Maison (Equipé)", "Salle", "Extérieur"])
+        
+        matos = ""
+        if "Equipé" in lieu:
+            matos = st.multiselect("Matériel dispo :", ["Haltères", "Vélo Appart", "Elastique", "Tapis"])
+            
+        if st.button("Créer ma séance"):
+            with st.spinner("Coaching..."):
+                plan = generate_workout(duree, intensite, lieu, str(matos))
+                st.session_state.workout_plan = plan
+        
+        if st.session_state.workout_plan:
+            p = st.session_state.workout_plan
+            st.subheader(f"🔥 {p.get('titre')}")
+            st.write(p.get('resume'))
+            
+            st.markdown("### 1. Echauffement")
+            for e in p.get('echauffement', []): st.write(f"- {e}")
+            
+            st.markdown("### 2. Circuit")
+            for ex in p.get('circuit', []):
+                st.write(f"💪 **{ex.get('exo')}** | {ex.get('rep')} | Repos: {ex.get('repos')}")
+                
+            st.markdown("### 3. Retour au calme")
+            for c in p.get('cooldown', []): st.write(f"- {c}")
+            
+    # CALCULATEURS
+    c1, c2 = st.columns(2)
+    with c1:
+        with st.expander("⚖️ IMC (Corpulence)"):
+            poids = st.number_input("Poids (kg)", 40, 150, 70)
+            taille = st.number_input("Taille (cm)", 100, 220, 175)
+            if st.button("Calcul IMC"): 
+                i = poids/((taille/100)**2)
+                st.metric("IMC", f"{i:.1f}")
+                if i<18.5: st.warning("Maigreur")
+                elif i<25: st.success("Normal")
+                else: st.error("Surpoids")
+    with c2:
+        with st.expander("🔥 TDEE (Besoins Kcal)"):
+            age = st.number_input("Age", 10, 100, 25)
+            sex = st.radio("Sexe", ["H", "F"], horizontal=True)
+            act = st.selectbox("Activité", ["Sédentaire", "Léger", "Modéré", "Intense"])
+            if st.button("Calcul"):
+                b = (10*poids)+(6.25*taille)-(5*age)
+                b = (b+5) if sex=="H" else (b-161)
+                f = {"Sédentaire":1.2, "Léger":1.375, "Modéré":1.55, "Intense":1.725}
+                res = int(b*f[act])
+                st.metric("Maintenance", f"{res} kcal")
+                st.caption(f"Sèche: {res-400} | Masse: {res+300}")
+
+    st.divider()
+
+    # WIKI COMPLET
+    with st.expander("🥩 LES PROTÉINES (Le Constructeur)"):
+        st.markdown("""
+        **Rôle :** Construire le muscle, réparer les tissus, couper la faim (satiété).
+        **Combien ?** 1.6g à 2g par kg de poids (Sportif).
+        **Sources :** Poulet, Boeuf 5%, Poisson, Oeufs, Skyr, Lentilles, Tofu.
+        **❌ A éviter :** Saucisses, nuggets, charcuterie.
+        """)
+
+    with st.expander("🍞 LES GLUCIDES (Le Carburant)"):
+        st.markdown("""
+        **Rôle :** Énergie pour l'entraînement et le cerveau.
+        **✅ Les Bons (IG Bas) :** Avoine, Riz Basmati, Patate Douce, Pâtes Complètes, Fruits.
+        **⚠️ Les Rapides :** Riz blanc, Banane mûre, Miel (autour du sport).
+        **❌ A bannir :** Sucre blanc, Sodas, Gâteaux industriels.
+        """)
+
+    with st.expander("🥑 LES LIPIDES (Le Protecteur)"):
+        st.markdown("""
+        **Rôle :** Hormones, cerveau. Ne jamais descendre sous 1g/kg.
+        **✅ Bons Gras :** Huile d'Olive (cru), Avocat, Noix/Amandes, Saumon, Jaune d'oeuf.
+        **❌ Mauvais Gras :** Friture, Huile tournesol chauffée, Gras trans.
+        """)
+        
+    with st.expander("💧 L'HYDRATATION"):
+        st.markdown("**3 Litres / jour minimum.** Une urine claire = bonne hydratation.")
+
+    st.subheader("🛑 DO & DON'T")
+    c_do, c_dont = st.columns(2)
+    with c_do:
+        st.success("""
+        **✅ DO**
+        1. Légumes à chaque repas (Volume).
+        2. Sommeil 7-8h (Récupération).
+        3. Peser aliments crus.
+        4. Marcher (10k pas).
+        """)
+    with c_dont:
+        st.error("""
+        **❌ DON'T**
+        1. Boire ses calories (Sodas).
+        2. Régimes famine (1000kcal).
+        3. Culpabiliser après un écart.
+        """)
 
 # 6. BIBLIOTHEQUE (SYSTEME VUE DETAILLEE)
 with tabs[5]:
