@@ -84,6 +84,7 @@ if 'frigo_suggestions' not in st.session_state: st.session_state.frigo_suggestio
 if 'workout_plan' not in st.session_state: st.session_state.workout_plan = None
 if 'selected_recipe_id' not in st.session_state: st.session_state.selected_recipe_id = None
 if 'cookies_path' not in st.session_state: st.session_state.cookies_path = None
+if 'shopping_list' not in st.session_state: st.session_state.shopping_list = []    
 
 # --- SECURITE ---
 safety_settings = {
