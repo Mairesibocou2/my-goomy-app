@@ -530,6 +530,47 @@ with tabs[0]:
 with tabs[1]:
     st.header("👨‍🍳 Super Chef IA")
     
+     url = st.text_input("Lien vidéo")
+    
+    if st.button("Analyser"):
+        if url:
+            with st.status("Analyse...", expanded=True) as status:
+                # Utilisation des cookies (Session ou Secret)
+                video_path, title, thumb = download_video(url)
+                
+                if video_path:
+                    status.write("Vidéo récupérée. IA en cours...")
+                    recipe = process_ai_full(video_path, title)
+                    status.update(label="Fini", state="complete")
+                    if "error" in recipe: st.error(recipe['error'])
+                    else:
+                        st.session_state.current_recipe = recipe
+                        st.session_state.current_url = url
+                        st.session_state.current_thumb = thumb
+                        st.rerun()
+                else:
+                    status.update(label="Bloqué par Insta", state="error")
+                    st.warning("⚠️ Instagram a bloqué le téléchargement. Pas grave ! Utilise l'option manuelle ci-dessous.")
+                    st.session_state.show_manual_input = True
+
+    if st.session_state.get('show_manual_input'):
+        st.divider()
+        st.info("💡 Colle la description de la vidéo ou écris juste le nom du plat (ex: 'Pâtes Carbonara').")
+        manual_text = st.text_area("📋 Description / Nom du plat :")
+        if st.button("Lancer avec le texte"):
+            with st.spinner("Génération..."):
+                recipe = generate_recipe_from_text(manual_text)
+                if "error" in recipe: st.error("Erreur")
+                else:
+                    st.session_state.current_recipe = recipe
+                    st.session_state.current_url = "Import Manuel"
+                    st.session_state.current_thumb = generate_image_url(recipe.get('nom', 'Plat'))
+                    st.session_state.show_manual_input = False
+                    st.rerun()
+
+    if st.session_state.current_recipe:
+        display_recipe_card_full(st.session_state.current_recipe, st.session_state.current_url, st.session_state.current_thumb, show_save=True)
+    
     c1, c2 = st.columns([3, 1])
     with c1: 
         req = st.text_input("J'ai envie de quoi ?", placeholder="Ex: Pâtes, Asiatique, Réconfortant...")
