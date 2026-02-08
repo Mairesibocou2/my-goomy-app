@@ -482,91 +482,98 @@ with st.sidebar:
 st.title("🥘 Goumin")
 tabs = st.tabs(["🔥 Import", "👨‍🍳 Super Chef", "🛒 Courses", "🔄 Comparateur", "🏋️ Coach", "📚 Bibliothèque"])
 
-# 1. IMPORT
+# 1. CUISINE (FUSION IMPORT & CHEF)
 with tabs[0]:
-    st.header("Import TikTok / Insta")
-    url = st.text_input("Lien vidéo")
-    
-    if st.button("Analyser"):
-        if url:
-            with st.status("Analyse...", expanded=True) as status:
-                # Utilisation des cookies (Session ou Secret)
-                video_path, title, thumb = download_video(url)
-                
-                if video_path:
-                    status.write("Vidéo récupérée. IA en cours...")
-                    recipe = process_ai_full(video_path, title)
-                    status.update(label="Fini", state="complete")
-                    if "error" in recipe: st.error(recipe['error'])
+    # SÉLECTEUR DE MODE
+    mode = st.radio("Je veux :", ["📥 Importer une vidéo (TikTok/Insta)", "👨‍🍳 Inventer une recette (Chef IA)"], horizontal=True)
+    st.divider()
+
+    # --- MODE IMPORT ---
+    if "Importer" in mode:
+        st.subheader("Importation")
+        url = st.text_input("Lien de la vidéo")
+        
+        if st.button("Analyser la vidéo"):
+            if url:
+                with st.status("Analyse...", expanded=True) as status:
+                    video_path, title, thumb = download_video(url)
+                    
+                    if video_path:
+                        status.write("Vidéo récupérée. IA en cours...")
+                        recipe = process_ai_full(video_path, title)
+                        status.update(label="Fini", state="complete")
+                        if "error" in recipe: st.error(recipe['error'])
+                        else:
+                            st.session_state.current_recipe = recipe
+                            st.session_state.current_url = url
+                            st.session_state.current_thumb = thumb
+                            st.rerun()
+                    else:
+                        status.update(label="Bloqué par Insta", state="error")
+                        st.warning("⚠️ Instagram a bloqué le téléchargement.")
+                        st.session_state.show_manual_input = True
+
+        # PLAN B (IMPORT MANUEL)
+        if st.session_state.get('show_manual_input'):
+            st.divider()
+            st.info("💡 Colle la description ou le nom du plat.")
+            manual_text = st.text_area("📋 Description / Nom du plat :")
+            if st.button("Lancer avec le texte"):
+                with st.spinner("Génération..."):
+                    recipe = generate_recipe_from_text(manual_text)
+                    if "error" in recipe: st.error("Erreur")
                     else:
                         st.session_state.current_recipe = recipe
-                        st.session_state.current_url = url
-                        st.session_state.current_thumb = thumb
+                        st.session_state.current_url = "Import Manuel"
+                        st.session_state.current_thumb = generate_image_url(recipe.get('nom', 'Plat'))
+                        st.session_state.show_manual_input = False
                         st.rerun()
-                else:
-                    status.update(label="Bloqué par Insta", state="error")
-                    st.warning("⚠️ Instagram a bloqué le téléchargement. Pas grave ! Utilise l'option manuelle ci-dessous.")
-                    st.session_state.show_manual_input = True
 
-    if st.session_state.get('show_manual_input'):
-        st.divider()
-        st.info("💡 Colle la description de la vidéo ou écris juste le nom du plat (ex: 'Pâtes Carbonara').")
-        manual_text = st.text_area("📋 Description / Nom du plat :")
-        if st.button("Lancer avec le texte"):
-            with st.spinner("Génération..."):
-                recipe = generate_recipe_from_text(manual_text)
-                if "error" in recipe: st.error("Erreur")
-                else:
-                    st.session_state.current_recipe = recipe
-                    st.session_state.current_url = "Import Manuel"
-                    st.session_state.current_thumb = generate_image_url(recipe.get('nom', 'Plat'))
-                    st.session_state.show_manual_input = False
-                    st.rerun()
+    # --- MODE CHEF IA ---
+    else:
+        st.subheader("👨‍🍳 Super Chef IA")
+        c1, c2 = st.columns([3, 1])
+        with c1: 
+            req = st.text_input("J'ai envie de quoi ?", placeholder="Ex: Pâtes, Asiatique, Réconfortant...")
+            frigo = st.text_input("J'ai quoi dans le frigo ? (Optionnel)", placeholder="Ex: 2 courgettes, des oeufs")
+        with c2: 
+            nb_p_c = st.number_input("Pers.", 1, 10, 2, key="nb_c")
+        
+        st.write("Filtres :")
+        opts = st.columns(4)
+        options_selected = []
+        if opts[0].checkbox("🥗 Healthy"): options_selected.append("Healthy")
+        if opts[1].checkbox("💰 Eco"): options_selected.append("Economique")
+        if opts[2].checkbox("⚡ Rapide"): options_selected.append("Rapide")
+        if opts[3].checkbox("📉 Peu d'ing."): options_selected.append("Peu d'ing.")
 
+        if st.button("Inventer mes recettes"):
+            with st.spinner("Le chef réfléchit..."):
+                res = generate_chef_proposals(req, frigo, options_selected, nb_p_c)
+                if "error" in res: st.error("Erreur IA")
+                elif isinstance(res, list): st.session_state.generated_recipes = res
+        
+        # Affichage des propositions du Chef
+        if st.session_state.generated_recipes:
+            st.divider()
+            cols = st.columns(3)
+            for i, r in enumerate(st.session_state.generated_recipes):
+                with cols[i]:
+                    st.subheader(r.get('type', 'Recette'))
+                    st.image(generate_image_url(r.get('nom')), use_container_width=True)
+                    st.write(f"**{r.get('nom')}**")
+                    display_score(r.get('score'))
+                    if st.button("Voir", key=f"view_{i}"):
+                        st.session_state.current_recipe = r
+                        st.session_state.current_url = "Chef IA"
+                        st.session_state.current_thumb = "AI_GENERATED"
+                        st.rerun()
+
+    # --- ZONE D'AFFICHAGE COMMUNE (RECETTE ACTIVE) ---
     if st.session_state.current_recipe:
-        display_recipe_card_full(st.session_state.current_recipe, st.session_state.current_url, st.session_state.current_thumb, show_save=True)
-
-# 2. SUPER CHEF (FUSION)
-with tabs[1]:
-    st.header("👨‍🍳 Super Chef IA")
-    
-    c1, c2 = st.columns([3, 1])
-    with c1: 
-        req = st.text_input("J'ai envie de quoi ?", placeholder="Ex: Pâtes, Asiatique, Réconfortant...")
-        frigo = st.text_input("J'ai quoi dans le frigo ? (Optionnel)", placeholder="Ex: 2 courgettes, des oeufs")
-    with c2: 
-        nb_p_c = st.number_input("Pers.", 1, 10, 2, key="nb_c")
-    
-    # Options à cocher
-    st.write("Filtres :")
-    opts = st.columns(4)
-    options_selected = []
-    if opts[0].checkbox("🥗 Healthy"): options_selected.append("Healthy")
-    if opts[1].checkbox("💰 Eco"): options_selected.append("Economique")
-    if opts[2].checkbox("⚡ Rapide"): options_selected.append("Rapide")
-    if opts[3].checkbox("📉 Peu d'ing."): options_selected.append("Peu d'ingrédients")
-
-    if st.button("Inventer mes recettes"):
-        with st.spinner("Le chef réfléchit..."):
-            # On appelle la nouvelle fonction avec tous les paramètres
-            res = generate_chef_proposals(req, frigo, options_selected, nb_p_c)
-            if "error" in res: st.error("Erreur IA")
-            elif isinstance(res, list): st.session_state.generated_recipes = res
-            
-    if st.session_state.generated_recipes:
         st.divider()
-        cols = st.columns(3)
-        for i, r in enumerate(st.session_state.generated_recipes):
-            with cols[i]:
-                st.subheader(r.get('type', 'Recette'))
-                st.image(generate_image_url(r.get('nom')), use_container_width=True)
-                st.write(f"**{r.get('nom')}**")
-                display_score(r.get('score'))
-                if st.button("Voir", key=f"view_{i}"):
-                    st.session_state.current_recipe = r
-                    st.session_state.current_url = "Chef IA"
-                    st.session_state.current_thumb = "AI_GENERATED"
-                    st.rerun()
+        st.success(f"Recette sélectionnée : {st.session_state.current_recipe.get('nom')}")
+        display_recipe_card_full(st.session_state.current_recipe, st.session_state.current_url, st.session_state.current_thumb, show_save=True)
 
 # 3. NOUVEL ONGLET LISTE DE COURSES
 with tabs[2]:
