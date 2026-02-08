@@ -469,7 +469,14 @@ with st.sidebar:
 
 # --- MAIN ---
 
-st.title("🥘 Goumin")
+# --- LOGO DE L'APPLICATION ---
+col_logo_1, col_logo_2, col_logo_3 = st.columns([1, 2, 1]) # Crée 3 colonnes pour centrer la deuxième
+with col_logo_2:
+    # Remplace 'logo.png' par le chemin de ton image ou une URL
+    # Si ton logo est en ligne, mets l'URL entre les guillemets
+    st.image("logo.png", use_container_width=True) 
+
+st.write("") # Petit espace sous le logo
 tabs = st.tabs(["👨‍🍳 My name is Chef", "🛒 Courses", "🔄 Comparateur", "🏋️ Coach", "📚 Bibliothèque"])
 
 # 1. CUISINE (FUSION IMPORT & CHEF)
