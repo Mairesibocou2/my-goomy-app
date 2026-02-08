@@ -721,11 +721,20 @@ with tabs[4]:
     if st.session_state.selected_recipe_id:
         r = next((item for item in db if item["id"] == st.session_state.selected_recipe_id), None)
         if r:
-            if st.button("⬅️ Retour à la bibliothèque"):
-                st.session_state.selected_recipe_id = None
-                st.rerun()
-            # On utilise la fonction d'affichage "Mobile" définie plus haut
-            display_recipe_card_full(r, r['url'], r['image_path'], show_save=False)
+            # --- BARRE D'ACTIONS (Retour et Actualiser sur la même ligne) ---
+            col_back, col_refresh = st.columns([1, 1])
+            
+            with col_back:
+                if st.button("⬅️ Retour", key="back_btn"):
+                    st.session_state.selected_recipe_id = None
+                    st.rerun()
+            
+            with col_refresh:
+                if st.button("🔄 Actualiser", key="refresh_recipe_btn"):
+                    st.rerun()
+            
+            # Affichage de la fiche recette mobile
+            display_recipe_card_full(r, r.get('url'), r.get('image_path'), show_save=False)
             
             # Modifier l'image
             st.divider()
