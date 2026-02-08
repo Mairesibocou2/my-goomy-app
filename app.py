@@ -595,9 +595,6 @@ with tabs[2]:
         
 # 4. COMPARATEUR
 with tabs[3]:
-    st.header("Comparateur Expert")
-    show_comparator_examples() # Affiche les 5 exemples complets
-    st.divider()
     st.subheader("🔍 Analyser un autre produit")
     prod = st.text_input("Nom du produit (Ex: Kinder Bueno)")
     if st.button("Comparer ce produit"):
@@ -609,6 +606,9 @@ with tabs[3]:
             st.success(res.get('verdict'))
             st.write(res.get('analyse'))
             st.info(f"Mieux : {res.get('alternative')}")
+    st.divider()
+    st.header("Comparateur Expert")
+    show_comparator_examples() # Affiche les 5 exemples complets
 
 # 5. COACH & SPORT (CONTENU COMPLET RESTITUÉ)
 with tabs[4]:
