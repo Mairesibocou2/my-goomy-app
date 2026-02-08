@@ -469,7 +469,7 @@ with st.sidebar:
 # --- MAIN ---
 
 st.title("🥘 Goumin")
-tabs = st.tabs(["🔥 Import", "🥕 Frigo Magic", "💡 Chef IA", "🔄 Comparateur", "🏋️ Coach", "📚 Bibliothèque"])
+tabs = st.tabs(["🔥 Import", "👨‍🍳 Super Chef", "🛒 Courses", "🔄 Comparateur", "🏋️ Coach", "📚 Bibliothèque"])
 
 # 1. IMPORT
 with tabs[0]:
@@ -515,44 +515,33 @@ with tabs[0]:
     if st.session_state.current_recipe:
         display_recipe_card_full(st.session_state.current_recipe, st.session_state.current_url, st.session_state.current_thumb, show_save=True)
 
-# 2. FRIGO
+# 2. SUPER CHEF (FUSION)
 with tabs[1]:
-    st.header("🥕 Frigo Anti-Gaspi")
+    st.header("👨‍🍳 Super Chef IA")
+    
     c1, c2 = st.columns([3, 1])
-    with c1: ing = st.text_input("J'ai quoi ?", placeholder="Ex: 3 oeufs, 1 courgette")
-    with c2: nb_p = st.number_input("Pers.", 1, 10, 1, key="nb_f")
-    if st.button("Trouver recette"):
-        with st.spinner("Recherche..."):
-            res = suggest_frigo_recipes(ing, nb_p)
-            if "error" in res: st.error("Erreur IA")
-            elif isinstance(res, list): st.session_state.frigo_suggestions = res
-            
-    if st.session_state.frigo_suggestions:
-        st.divider()
-        for i, s in enumerate(st.session_state.frigo_suggestions):
-            with st.expander(f"Option {i+1} : {s.get('nom')}", expanded=True):
-                c1, c2 = st.columns([1, 3])
-                with c1: st.image(generate_image_url(s.get('nom')), use_container_width=True)
-                with c2:
-                    display_score(s.get('score', 50))
-                    st.caption(f"{s.get('portion_text')}")
-                    display_nutrition_row(s.get('nutrition', {}))
-                    st.write("**Ingrédients:** " + ", ".join(s.get('ingredients', [])))
-                    if st.button("Choisir", key=f"btn_f_{i}"):
-                        add_recipe(s, "Frigo", generate_image_url(s.get('nom')))
-                        st.toast("Sauvegardé !")
+    with c1: 
+        req = st.text_input("J'ai envie de quoi ?", placeholder="Ex: Pâtes, Asiatique, Réconfortant...")
+        frigo = st.text_input("J'ai quoi dans le frigo ? (Optionnel)", placeholder="Ex: 2 courgettes, des oeufs")
+    with c2: 
+        nb_p_c = st.number_input("Pers.", 1, 10, 2, key="nb_c")
+    
+    # Options à cocher
+    st.write("Filtres :")
+    opts = st.columns(4)
+    options_selected = []
+    if opts[0].checkbox("🥗 Healthy"): options_selected.append("Healthy")
+    if opts[1].checkbox("💰 Eco"): options_selected.append("Economique")
+    if opts[2].checkbox("⚡ Rapide"): options_selected.append("Rapide")
+    if opts[3].checkbox("📉 Peu d'ing."): options_selected.append("Peu d'ingrédients")
 
-# 3. CHEF IA
-with tabs[2]:
-    st.header("Chef IA")
-    c1, c2 = st.columns([3, 1])
-    with c1: req = st.text_input("Envie de ?")
-    with c2: nb_p_c = st.number_input("Pers.", 1, 10, 2, key="nb_c")
-    if st.button("Inventer"):
-        with st.spinner("Création..."):
-            res = generate_chef_proposals(req, nb_p_c)
+    if st.button("Inventer mes recettes"):
+        with st.spinner("Le chef réfléchit..."):
+            # On appelle la nouvelle fonction avec tous les paramètres
+            res = generate_chef_proposals(req, frigo, options_selected, nb_p_c)
             if "error" in res: st.error("Erreur IA")
             elif isinstance(res, list): st.session_state.generated_recipes = res
+            
     if st.session_state.generated_recipes:
         st.divider()
         cols = st.columns(3)
@@ -568,6 +557,31 @@ with tabs[2]:
                     st.session_state.current_thumb = "AI_GENERATED"
                     st.rerun()
 
+# 3. NOUVEL ONGLET LISTE DE COURSES
+with tabs[2]:
+    st.header("🛒 Ma Liste de Courses")
+    
+    if not st.session_state.shopping_list:
+        st.info("Ta liste est vide. Coche des ingrédients dans les recettes !")
+    else:
+        # Bouton pour tout effacer
+        if st.button("🗑️ Vider la liste"):
+            st.session_state.shopping_list = []
+            st.rerun()
+            
+        st.divider()
+        for item in st.session_state.shopping_list:
+            # On affiche juste l'item, ou une checkbox pour le "rayer" (retirer)
+            if st.checkbox(item, value=True, key=f"list_view_{item}"):
+                pass # Si on décoche, ça le retire au prochain rerun
+            else:
+                st.session_state.shopping_list.remove(item)
+                st.rerun()
+        
+        # Export simple (texte à copier)
+        st.divider()
+        st.text_area("Copier pour envoyer par SMS :", "\n".join(["- " + i for i in st.session_state.shopping_list]))
+        
 # 4. COMPARATEUR
 with tabs[3]:
     st.header("Comparateur Expert")
