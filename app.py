@@ -40,7 +40,7 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
-    .stApp { background-color: #F2F2F7; }
+    .stApp { background-color: #141414; }
 
     /* Force le format carré pour les images de recettes */
     [data-testid="stImage"] img {
