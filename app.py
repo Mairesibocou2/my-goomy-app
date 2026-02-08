@@ -312,6 +312,9 @@ def display_recipe_card_full(r, url, thumb, show_save=False):
     c_titre, c_badge = st.columns([3, 1])
     with c_titre:
         st.header(r.get('nom', 'Recette'))
+        # AJOUT DU LIEN VIDEO ICI
+        if url and "http" in url:
+            st.markdown(f"🔗 [Voir la vidéo originale]({url})")
         if r.get('type'): st.caption(f"Style : {r.get('type')}")
     with c_badge:
         st.markdown(f"<div style='text-align:right;'><span class='portion-badge'>👥 {r.get('portion_text', 'Standard')}</span></div>", unsafe_allow_html=True)
@@ -337,8 +340,38 @@ def display_recipe_card_full(r, url, thumb, show_save=False):
                 time.sleep(1)
                 st.rerun()
     with col2:
-        st.subheader("Ingrédients")
-        for i in r.get('ingredients', []): st.write(f"- {i}")
+        st.subheader("Ingrédients (Cocher pour la liste)")
+        
+        ingredients = r.get('ingredients', [])
+        
+        # LOGIQUE POUR GERER L'AFFICHAGE COMPLEXE (Dictionnaires)
+        flat_list = []
+        
+        # Si c'est une liste de dictionnaires (Ton bug actuel)
+        if ingredients and isinstance(ingredients[0], dict):
+            for group in ingredients:
+                st.markdown(f"**{group.get('categorie', 'Autre')}**")
+                for item in group.get('elements', []):
+                    # Checkbox pour liste de courses
+                    is_in_list = item in st.session_state.shopping_list
+                    if st.checkbox(item, value=is_in_list, key=f"shop_{r.get('id', 'new')}_{item}"):
+                        if item not in st.session_state.shopping_list:
+                            st.session_state.shopping_list.append(item)
+                    else:
+                        if item in st.session_state.shopping_list:
+                            st.session_state.shopping_list.remove(item)
+        
+        # Si c'est une liste simple (Anciennes recettes)
+        else:
+            for item in ingredients:
+                is_in_list = item in st.session_state.shopping_list
+                if st.checkbox(item, value=is_in_list, key=f"shop_{r.get('id', 'new')}_{item}"):
+                    if item not in st.session_state.shopping_list:
+                        st.session_state.shopping_list.append(item)
+                else:
+                    if item in st.session_state.shopping_list:
+                        st.session_state.shopping_list.remove(item)
+
         st.subheader("Instructions")
         for i, s in enumerate(r.get('etapes', []), 1): st.write(f"**{i}.** {s}")
 
