@@ -742,73 +742,65 @@ with tabs[3]:
         3. Culpabiliser après un écart.
         """)
 
-# 6. BIBLIOTHEQUE (SYSTEME VUE DETAILLEE)
 with tabs[4]:
     if st.button("🔄 Actualiser"): st.rerun()
     db = load_db()
     
-    # --- LOGIQUE D'AFFICHAGE VUE DETAILLEE ---
+    # --- VUE DÉTAILLÉE (Si on a cliqué sur une recette) ---
     if st.session_state.selected_recipe_id:
         r = next((item for item in db if item["id"] == st.session_state.selected_recipe_id), None)
         if r:
             if st.button("⬅️ Retour à la bibliothèque"):
                 st.session_state.selected_recipe_id = None
                 st.rerun()
-            
+            # On utilise la fonction d'affichage "Mobile" définie plus haut
             display_recipe_card_full(r, r['url'], r['image_path'], show_save=False)
             
+            # Modifier l'image
             st.divider()
-            st.subheader("🖼️ Modifier la photo du plat")
-            c1, c2 = st.columns(2)
-            with c1: new_url_input = st.text_input("Option 1 : Lien URL d'une image")
-            with c2: uploaded_file = st.file_uploader("Option 2 : Uploader une photo", type=['png', 'jpg', 'jpeg'])
-            
-            if st.button("💾 Enregistrer la nouvelle image"):
-                new_path = None
-                if uploaded_file: new_path = save_uploaded_file(uploaded_file, r['id'])
-                elif new_url_input: new_path = new_url_input
-                if new_path: update_recipe_image(r['id'], new_path); st.success("Mise à jour !"); time.sleep(1); st.rerun()
+            with st.expander("🖼️ Modifier la photo du plat"):
+                c1, c2 = st.columns(2)
+                with c1: new_url_input = st.text_input("Lien URL image")
+                with c2: uploaded_file = st.file_uploader("Upload image", type=['png', 'jpg', 'jpeg'])
+                
+                if st.button("💾 Sauvegarder nouvelle image"):
+                    new_path = None
+                    if uploaded_file: new_path = save_uploaded_file(uploaded_file, r['id'])
+                    elif new_url_input: new_path = new_url_input
+                    if new_path: update_recipe_image(r['id'], new_path); st.success("Mise à jour !"); time.sleep(1); st.rerun()
 
-    # --- LOGIQUE D'AFFICHAGE GRILLE ---
+    # --- VUE GRILLE (Si aucune recette n'est sélectionnée) ---
     else:
-        if not db: st.info("Vide.")
+        # C'est ici que tu avais l'erreur d'indentation
+        if not db:
+            st.info("Ta bibliothèque est vide.") # <- Cette ligne est maintenant bien décalée
         else:
-            cols = st.columns(6) 
-            for i, item in enumerate(reversed(db)):
-                with cols[i % 6]:
-                    with st.container(border=True):
-                        img_path = item.get('image_path')
-                        if img_path and (os.path.exists(img_path) or "http" in img_path):
-                             st.image(img_path, use_container_width=True)
-                        else:
-        if not db: st.info("Ta bibliothèque est vide.")
-        else:
-            # ON PASSE A 2 COLONNES (Style Pinterest / Instagram)
+            # MODE MOBILE : 2 COLONNES (au lieu de 6)
             cols = st.columns(2) 
             for i, item in enumerate(reversed(db)):
-                with cols[i % 2]: # Modulo 2 pour alterner gauche/droite
+                with cols[i % 2]: # On alterne colonne 1 / colonne 2
                     with st.container(border=True):
-                        # Image cliquable (via le bouton en dessous en réalité)
+                        # Image
                         img_path = item.get('image_path')
                         if img_path and (os.path.exists(img_path) or "http" in img_path):
                              st.image(img_path, use_container_width=True)
                         else:
                              st.image(generate_image_url(item['nom']), use_container_width=True)
                         
-                        # Titre court
-                        st.markdown(f"<div style='font-weight:bold; font-size:1.1em; margin-bottom:5px;'>{item['nom'][:40]}..</div>", unsafe_allow_html=True)
+                        # Titre court en gras
+                        st.markdown(f"<div style='font-weight:bold; font-size:1.1em; margin-bottom:5px; height:50px; overflow:hidden;'>{item['nom'][:40]}..</div>", unsafe_allow_html=True)
                         
-                        # Score Badge
+                        # Score
                         display_score(item.get('score'))
                         
-                        st.write("") # Espace
+                        st.write("") # Petit espace
                         
                         # Bouton VOIR (Prend toute la largeur)
-                        if st.button("Voir", key=f"see_{item['id']}"): 
+                        if st.button("Voir", key=f"see_{item['id']}"):
                             st.session_state.selected_recipe_id = item['id']
                             st.rerun()
                         
-                        # Petit bouton poubelle discret en dessous
-                        if st.button("Supprimer", key=f"del_{item['id']}"): 
+                        # Bouton SUPPRIMER (Discret en dessous)
+                        if st.button("🗑️", key=f"del_{item['id']}"):
                             delete_recipe(item['id'])
                             st.rerun()
