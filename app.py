@@ -42,38 +42,57 @@ st.markdown("""
     html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
     .stApp { background-color: #F2F2F7; }
     
+    /* CARTES RECETTES (Style iOS) */
     div[data-testid="stVerticalBlock"] > div[style*="border"] {
-        background-color: white; border-radius: 20px !important; border: none !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 15px; transition: transform 0.2s;
-    }
-    div[data-testid="stVerticalBlock"] > div[style*="border"]:hover {
-        transform: translateY(-2px); box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        background-color: white; 
+        border-radius: 24px !important; /* Plus arrondi */
+        border: none !important;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.05); 
+        padding: 20px; 
+        margin-bottom: 10px;
     }
     
+    /* IMAGES ARRONDIES */
+    img { border-radius: 16px !important; object-fit: cover; }
+    
+    /* BOUTONS (Gros et faciles à toucher) */
     .stButton>button {
-        width: 100%; border-radius: 12px; font-weight: 600; min-height: 45px; border: none;
+        width: 100%; border-radius: 16px; font-weight: 700; min-height: 55px; border: none;
         background: linear-gradient(135deg, #FF6B6B 0%, #FF4757 100%); color: white;
-        box-shadow: 0 4px 10px rgba(255, 71, 87, 0.3);
+        font-size: 16px !important;
+        box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
     }
-    .stButton>button:hover { transform: scale(1.02); box-shadow: 0 6px 15px rgba(255, 71, 87, 0.4); }
+    .stButton>button:active { transform: scale(0.98); }
     
-    .stTextInput>div>div>input, .stNumberInput>div>div>input {
-        border-radius: 12px; border: 1px solid #E5E5EA; padding: 10px; background-color: white;
+    /* CHAMPS TEXTE */
+    .stTextInput>div>div>input {
+        border-radius: 16px; border: 1px solid #E5E5EA; padding: 12px; font-size: 16px;
     }
-    
-    .score-badge {padding: 4px 10px; border-radius: 15px; color: white; font-weight: bold; font-size: 0.8em; box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
-    .portion-badge {background-color: #007AFF; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.8em; font-weight: bold;}
-    .small-text {font-size: 0.85em; color: #3A3A3C;}
-    .big-icon {font-size: 40px; text-align: center;}
-    
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
+
+    /* TABS (Style Boutons Pillules) */
+    .stTabs [data-baseweb="tab-list"] { 
+        gap: 8px; 
+        overflow-x: auto; /* Permet de scroller les onglets horizontalement sur mobile */
+        white-space: nowrap;
+        padding-bottom: 5px;
+    }
     .stTabs [data-baseweb="tab"] {
-        background-color: white; border-radius: 10px; border: none; padding: 10px 20px; font-weight: 600;
+        background-color: white; border-radius: 20px; border: none; 
+        padding: 8px 20px; font-weight: 600; font-size: 14px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
     .stTabs [aria-selected="true"] { background-color: #FF4757 !important; color: white !important; }
+
+    /* TEXTES */
+    h1 { font-size: 28px !important; text-align: center; color: #1C1C1E; }
+    h2 { font-size: 22px !important; color: #1C1C1E; }
+    h3 { font-size: 18px !important; color: #3A3A3C; }
     
-    div[data-testid="stMetric"] { background-color: #F8F9FA; padding: 10px; border-radius: 12px; text-align: center; }
+    /* CUSTOM BADGES */
+    .score-badge {
+        padding: 6px 12px; border-radius: 12px; color: white; font-weight: bold; 
+        font-size: 0.9em; display: inline-block; margin-bottom: 5px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -335,71 +354,71 @@ def display_nutrition_row(nutri_data):
     c4.caption(f"🥑 {nutri_data.get('fat', '?')}")
 
 def display_recipe_card_full(r, url, thumb, show_save=False):
-    st.divider()
-    c_titre, c_badge = st.columns([3, 1])
-    with c_titre:
-        st.header(r.get('nom', 'Recette'))
-        # LIEN VIDÉO CLIQUABLE
-        if r.get('url') and "http" in r.get('url'):
-            st.markdown(f"🔗 [Voir la vidéo originale]({r.get('url')})")
-        if r.get('type'): st.caption(f"Style : {r.get('type')}")
-    with c_badge:
-        st.markdown(f"<div style='text-align:right;'><span class='portion-badge'>👥 {r.get('portion_text', 'Standard')}</span></div>", unsafe_allow_html=True)
+    # 1. IMAGE EN VEDETTE (HERO)
+    if thumb and "http" in thumb: 
+        st.image(thumb, use_container_width=True)
+    else: 
+        st.markdown('<div class="big-icon" style="font-size: 80px;">🥘</div>', unsafe_allow_html=True)
 
-    display_score(r.get('score', 50))
-    st.write(f"⏱️ **{r.get('temps', '?')}**")
-    st.info("📊 Nutrition (1 part)")
-    display_nutrition_row(r.get('nutrition', {}))
+    # 2. TITRE & INFOS
+    st.markdown(f"<h2 style='text-align:center; margin-top:0;'>{r.get('nom', 'Recette')}</h2>", unsafe_allow_html=True)
     
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        if thumb and "http" in thumb: st.image(thumb, use_container_width=True)
-        else: st.markdown('<div class="big-icon">🥘</div>', unsafe_allow_html=True)
-        if show_save:
-            st.write("")
-            if st.button("💾 Sauvegarder", type="primary", key=f"save_{r.get('nom')}"):
-                final_thumb = thumb
-                if not thumb or thumb == "AI_GENERATED":
-                    final_thumb = generate_image_url(r.get('nom'))
-                add_recipe(r, url, final_thumb)
-                st.balloons()
-                st.toast("Ajouté !", icon="✅")
-                time.sleep(1)
-                st.rerun()
-    with col2:
-        st.subheader("Ingrédients (Cocher pour courses)")
-        
+    # Ligne d'infos rapides (Centrée)
+    c1, c2, c3 = st.columns(3)
+    with c1: st.markdown(f"<div style='text-align:center'>⏱️<br><b>{r.get('temps', '?')}</b></div>", unsafe_allow_html=True)
+    with c2: 
+        score = r.get('score', 50)
+        color = "#2ed573" if score >= 80 else "#ffa502" if score >= 50 else "#ff4757"
+        st.markdown(f"<div style='text-align:center'>❤️<br><span style='color:{color}; font-weight:bold'>{score}/100</span></div>", unsafe_allow_html=True)
+    with c3: st.markdown(f"<div style='text-align:center'>👥<br><b>{r.get('portion_text', 'Standard')}</b></div>", unsafe_allow_html=True)
+    
+    st.divider()
+
+    # 3. LIEN VIDEO
+    if url and "http" in url:
+        st.info(f"🔗 [Voir la vidéo originale sur TikTok/Insta]({url})")
+
+    # 4. ONGLETS INTERNES (Ingrédients vs Instructions pour gagner de la place)
+    tab_ing, tab_inst, tab_nutri = st.tabs(["🥕 Ingrédients", "🔥 Étapes", "📊 Nutri"])
+    
+    with tab_ing:
+        # Code de nettoyage (inchangé)
         raw_ingredients = r.get('ingredients', [])
         final_ingredients = []
-
-        # CORRECTION DU BUG D'AFFICHAGE "CATEGORIE"
-        # On aplatit la liste si l'IA a fait des catégories complexes
         if raw_ingredients and isinstance(raw_ingredients[0], dict):
-            for group in raw_ingredients:
-                # On ajoute les éléments de chaque groupe à notre liste finale
-                final_ingredients.extend(group.get('elements', []))
-        else:
-            final_ingredients = raw_ingredients
-
-        # AFFICHAGE ET CHECKBOX
+            for group in raw_ingredients: final_ingredients.extend(group.get('elements', []))
+        else: final_ingredients = raw_ingredients
+        
+        # Checkbox
         for item in final_ingredients:
-            # On calcule le nom "propre" pour la liste de courses
             clean_name = clean_ingredient_name(item)
-            
-            # Est-ce que cet ingrédient (version propre) est déjà dans la liste ?
             is_in_list = clean_name in st.session_state.shopping_list
-            
-            # On affiche la phrase complète (ex: "2 oeufs") mais on stocke "Oeufs"
             if st.checkbox(item, value=is_in_list, key=f"shop_{r.get('id', 'new')}_{item}"):
-                if clean_name not in st.session_state.shopping_list:
-                    st.session_state.shopping_list.append(clean_name)
+                if clean_name not in st.session_state.shopping_list: st.session_state.shopping_list.append(clean_name)
             else:
-                if clean_name in st.session_state.shopping_list:
-                    st.session_state.shopping_list.remove(clean_name)
+                if clean_name in st.session_state.shopping_list: st.session_state.shopping_list.remove(clean_name)
 
-        st.subheader("Instructions")
-        for i, s in enumerate(r.get('etapes', []), 1): st.write(f"**{i}.** {s}")
+    with tab_inst:
+        for i, s in enumerate(r.get('etapes', []), 1): 
+            st.markdown(f"**{i}.** {s}")
+            st.write("") # Petit saut de ligne
 
+    with tab_nutri:
+        display_nutrition_row(r.get('nutrition', {}))
+
+    # 5. BOUTON SAVE (Sticky en bas visuellement)
+    if show_save:
+        st.write("")
+        if st.button("💾 Sauvegarder dans ma bibliothèque", type="primary", key=f"save_{r.get('nom')}"):
+            final_thumb = thumb
+            if not thumb or thumb == "AI_GENERATED":
+                final_thumb = generate_image_url(r.get('nom'))
+            add_recipe(r, url, final_thumb)
+            st.balloons()
+            st.toast("Ajouté !", icon="✅")
+            time.sleep(1)
+            st.rerun()
+            
 # --- CONTENU COMPLET COMPARATEUR (REMIS A NEUF) ---
 def show_comparator_examples():
     examples = {
@@ -762,13 +781,34 @@ with tabs[4]:
                         if img_path and (os.path.exists(img_path) or "http" in img_path):
                              st.image(img_path, use_container_width=True)
                         else:
+        if not db: st.info("Ta bibliothèque est vide.")
+        else:
+            # ON PASSE A 2 COLONNES (Style Pinterest / Instagram)
+            cols = st.columns(2) 
+            for i, item in enumerate(reversed(db)):
+                with cols[i % 2]: # Modulo 2 pour alterner gauche/droite
+                    with st.container(border=True):
+                        # Image cliquable (via le bouton en dessous en réalité)
+                        img_path = item.get('image_path')
+                        if img_path and (os.path.exists(img_path) or "http" in img_path):
+                             st.image(img_path, use_container_width=True)
+                        else:
                              st.image(generate_image_url(item['nom']), use_container_width=True)
                         
-                        st.markdown(f"<div class='small-text'><b>{item['nom'][:30]}..</b></div>", unsafe_allow_html=True)
+                        # Titre court
+                        st.markdown(f"<div style='font-weight:bold; font-size:1.1em; margin-bottom:5px;'>{item['nom'][:40]}..</div>", unsafe_allow_html=True)
+                        
+                        # Score Badge
                         display_score(item.get('score'))
                         
-                        c_voir, c_del = st.columns([3, 1])
-                        with c_voir:
-                            if st.button("Voir", key=f"see_{item['id']}"): st.session_state.selected_recipe_id = item['id']; st.rerun()
-                        with c_del:
-                            if st.button("🗑️", key=f"del_{item['id']}"): delete_recipe(item['id']); st.rerun()
+                        st.write("") # Espace
+                        
+                        # Bouton VOIR (Prend toute la largeur)
+                        if st.button("Voir", key=f"see_{item['id']}"): 
+                            st.session_state.selected_recipe_id = item['id']
+                            st.rerun()
+                        
+                        # Petit bouton poubelle discret en dessous
+                        if st.button("Supprimer", key=f"del_{item['id']}"): 
+                            delete_recipe(item['id'])
+                            st.rerun()
