@@ -1,0 +1,6 @@
+streamlit
+yt-dlp
+google-generativeai
+streamlit-gsheets
+pandas
+st-connection
