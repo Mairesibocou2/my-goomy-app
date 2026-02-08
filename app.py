@@ -42,6 +42,12 @@ st.markdown("""
     html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
     .stApp { background-color: #141414; }
 
+    /* Ajustement précis de la taille du logo */
+    [data-testid="stColumn"]:nth-child(2) img {
+        max-width: 150px !important; /* Change 150px par la taille voulue */
+        margin: 0 auto;
+    }
+
     /* Force le format carré pour les images de recettes */
     [data-testid="stImage"] img {
         width: 100%;
@@ -470,15 +476,12 @@ with st.sidebar:
 # --- MAIN ---
 
 # --- LOGO DE L'APPLICATION AVEC SECURITE ---
-col_logo_1, col_logo_2, col_logo_3 = st.columns([1, 2, 1])
-with col_logo_2:
-    if os.path.exists("logo.png"):
-        st.image("logo.png", use_container_width=True)
-    else:
-        # Si le fichier manque, on affiche un titre stylé pour ne pas avoir d'erreur
-        st.markdown("<h1 style='text-align:center; color:#FF4757;'>🥘 Goumin</h1>", unsafe_allow_html=True)
+c_l1, c_l2, c_l3 = st.columns([2, 1, 2]) 
+with c_l2:
+    st.image("logo.png", use_container_width=True)
 
 st.write("")
+
 tabs = st.tabs(["👨‍🍳 My name is Chef", "🛒 Courses", "🔄 Comparateur", "🏋️ Coach", "📚 Bibliothèque"])
 
 # 1. CUISINE (FUSION IMPORT & CHEF)
