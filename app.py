@@ -576,7 +576,7 @@ with tabs[0]:
         display_recipe_card_full(st.session_state.current_recipe, st.session_state.current_url, st.session_state.current_thumb, show_save=True)
 
 # 3. NOUVEL ONGLET LISTE DE COURSES
-with tabs[2]:
+with tabs[1]:
     st.header("🛒 Ma Liste de Courses")
     
     if not st.session_state.shopping_list:
@@ -601,7 +601,7 @@ with tabs[2]:
         st.text_area("Copier pour envoyer par SMS :", "\n".join(["- " + i for i in st.session_state.shopping_list]))
         
 # 4. COMPARATEUR
-with tabs[3]:
+with tabs[2]:
     st.subheader("🔍 Analyser un autre produit")
     prod = st.text_input("Nom du produit (Ex: Kinder Bueno)")
     if st.button("Comparer ce produit"):
@@ -618,7 +618,7 @@ with tabs[3]:
     show_comparator_examples() # Affiche les 5 exemples complets
 
 # 5. COACH & SPORT (CONTENU COMPLET RESTITUÉ)
-with tabs[4]:
+with tabs[3]:
     st.header("🏋️ Coach Goumin")
     
     with st.expander("🏃 Générateur de Séance Sport", expanded=True):
